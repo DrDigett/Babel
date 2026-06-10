@@ -7,4 +7,6 @@ Dockerfile
 .dockerignore
 plan.txt
 Babel.bat
-packages/client/
+packages/client/node_modules/
+packages/client/dist/
+packages/client/public/

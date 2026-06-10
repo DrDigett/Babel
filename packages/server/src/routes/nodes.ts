@@ -3,8 +3,11 @@ import { db } from '../db'
 import { nodes } from '../db/schema'
 import { Hono } from 'hono'
 import { eq } from 'drizzle-orm'
-import type { CreateNodeInput } from '@babel-plus/shared'
-import { NODE_TYPES, NODE_STATUSES, NODE_PRIORITIES } from '@babel-plus/shared'
+import type { CreateNodeInput, NodeType, NodeStatus, NodePriority } from '@babel-plus/shared'
+
+const NODE_TYPES: NodeType[] = ['libro', 'pelicula', 'articulo', 'video', 'curso', 'evento', 'videojuego']
+const NODE_STATUSES: NodeStatus[] = ['pendiente', 'en_progreso', 'terminado', 'abandonado']
+const NODE_PRIORITIES: NodePriority[] = ['alta', 'media', 'baja']
 
 const router = new Hono()
 

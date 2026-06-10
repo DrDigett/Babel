@@ -3,8 +3,12 @@ import { db } from '../db'
 import { nodes, relations } from '../db/schema'
 import { Hono } from 'hono'
 import { eq } from 'drizzle-orm'
-import type { CreateRelationInput } from '@babel-plus/shared'
-import { RELATION_TYPES } from '@babel-plus/shared'
+import type { CreateRelationInput, RelationType } from '@babel-plus/shared'
+
+const RELATION_TYPES: RelationType[] = [
+  'es_autor_de', 'dirigio', 'trata_sobre', 'pertenece_a',
+  'influyo_a', 'critica_a', 'inspiro', 'ocurre_en', 'similar_a',
+]
 
 const router = new Hono()
 

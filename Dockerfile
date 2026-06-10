@@ -5,7 +5,7 @@ COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
 COPY packages/server/package.json packages/server/
 
-RUN npm ci --omit=dev
+RUN npm ci
 
 COPY . .
 

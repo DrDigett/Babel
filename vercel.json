@@ -1,9 +1,0 @@
-{
-  "framework": null,
-  "buildCommand": "cd packages/client && npm run build",
-  "outputDirectory": "packages/client/dist",
-  "installCommand": "npm install",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}

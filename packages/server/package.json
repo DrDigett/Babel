@@ -18,12 +18,12 @@
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.40.0",
     "hono": "^4.7.0",
-    "openai": "^6.42.0"
+    "openai": "^6.42.0",
+    "tsx": "^4.19.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",
     "drizzle-kit": "^0.30.0",
-    "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   }
 }
