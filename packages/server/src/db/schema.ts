@@ -1,6 +1,6 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core'
+import { pgTable, text, integer, real } from 'drizzle-orm/pg-core'
 
-export const nodes = sqliteTable('nodes', {
+export const nodes = pgTable('nodes', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
   type: text('type').notNull(),
@@ -17,7 +17,7 @@ export const nodes = sqliteTable('nodes', {
   updatedAt: text('updated_at').notNull(),
 })
 
-export const relations = sqliteTable('relations', {
+export const relations = pgTable('relations', {
   id: text('id').primaryKey(),
   sourceId: text('source_id').notNull().references(() => nodes.id, { onDelete: 'cascade' }),
   targetId: text('target_id').notNull().references(() => nodes.id, { onDelete: 'cascade' }),

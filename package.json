@@ -6,15 +6,17 @@
   ],
   "scripts": {
     "dev": "concurrently -n server,client -c blue,green \"npm run dev -w @babel-plus/server\" \"npm run dev -w @babel-plus/client\"",
-"build": "npm run build --workspaces --if-present",
-"build:client": "npm run build -w @babel-plus/client",
-"build:server": "npm run build -w @babel-plus/server",
-"start": "npm run start -w @babel-plus/server",
+    "build": "npm run build --workspaces --if-present",
+    "build:client": "npm run build -w @babel-plus/client",
+    "build:server": "npm run build -w @babel-plus/server",
+    "start": "npm run start -w @babel-plus/server",
     "db:migrate": "npm run db:migrate -w @babel-plus/server",
     "db:seed": "npm run db:seed -w @babel-plus/server"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"
+  },
+  "dependencies": {
+    "flyctl": "^1.2.8"
   }
 }
-

@@ -462,10 +462,20 @@ const seedRelations = [
   },
 ]
 
-console.log(`Insertando ${seedNodes.length} nodos...`)
-db.insert(nodes).values(seedNodes).run()
+export async function seed() {
+  console.log(`Insertando ${seedNodes.length} nodos...`)
+  await db.insert(nodes).values(seedNodes)
 
-console.log(`Insertando ${seedRelations.length} relaciones...`)
-db.insert(relations).values(seedRelations).run()
+  console.log(`Insertando ${seedRelations.length} relaciones...`)
+  await db.insert(relations).values(seedRelations)
 
-console.log('Seed completado.')
+  console.log('Seed completado.')
+}
+
+const isMain = import.meta.url === `file://${process.argv[1]}`.replace(/\\/g, '/')
+if (isMain) {
+  seed().catch((err) => {
+    console.error('Seed falló:', err)
+    process.exit(1)
+  })
+}

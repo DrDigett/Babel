@@ -49,15 +49,15 @@ router.post('/smart-add', async (c) => {
     updatedAt: now,
   }
 
-  db.insert(nodes).values(node).run()
+  await db.insert(nodes).values(node)
 
   const createdRelations = []
   for (const rel of result.relations) {
-    const target = db
+    const [target] = await db
       .select({ id: nodes.id, title: nodes.title })
       .from(nodes)
       .where(sql`LOWER(${nodes.title}) = LOWER(${rel.targetTitle})`)
-      .get()
+      .limit(1)
 
     if (target) {
       const relation = {
@@ -68,7 +68,7 @@ router.post('/smart-add', async (c) => {
         weight: rel.weight ?? 1.0,
         createdAt: now,
       }
-      db.insert(relations).values(relation).run()
+      await db.insert(relations).values(relation)
       createdRelations.push({ ...relation, targetTitle: target.title })
     }
   }

@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import { db } from '../db'
 import { nodes } from '../db/schema'
 import { Hono } from 'hono'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import type { CreateNodeInput, NodeType, NodeStatus, NodePriority } from '@babel-plus/shared'
 
 const NODE_TYPES: NodeType[] = ['libro', 'pelicula', 'articulo', 'video', 'curso', 'evento', 'videojuego']
@@ -11,20 +11,24 @@ const NODE_PRIORITIES: NodePriority[] = ['alta', 'media', 'baja']
 
 const router = new Hono()
 
-router.get('/', (c) => {
+router.get('/', async (c) => {
   const type = c.req.query('type')
   const status = c.req.query('status')
 
-  const all = db.select().from(nodes).all()
-  let filtered = all
-  if (type) filtered = filtered.filter((n) => n.type === type)
-  if (status) filtered = filtered.filter((n) => n.status === status)
-  return c.json(filtered)
+  const conditions = []
+  if (type) conditions.push(eq(nodes.type, type))
+  if (status) conditions.push(eq(nodes.status, status))
+
+  const all = conditions.length
+    ? await db.select().from(nodes).where(and(...conditions))
+    : await db.select().from(nodes)
+
+  return c.json(all)
 })
 
-router.get('/:id', (c) => {
+router.get('/:id', async (c) => {
   const id = c.req.param('id')
-  const node = db.select().from(nodes).where(eq(nodes.id, id)).get()
+  const [node] = await db.select().from(nodes).where(eq(nodes.id, id)).limit(1)
   if (!node) return c.json({ error: 'not found' }, 404)
   return c.json(node)
 })
@@ -66,14 +70,14 @@ router.post('/', async (c) => {
     createdAt: now,
     updatedAt: now,
   }
-  db.insert(nodes).values(node).run()
+  await db.insert(nodes).values(node)
   return c.json(node, 201)
 })
 
 router.put('/:id', async (c) => {
   const id = c.req.param('id')
   const body = await c.req.json<Partial<CreateNodeInput>>()
-  const existing = db.select().from(nodes).where(eq(nodes.id, id)).get()
+  const [existing] = await db.select().from(nodes).where(eq(nodes.id, id)).limit(1)
   if (!existing) return c.json({ error: 'not found' }, 404)
 
   if (body.title !== undefined && (typeof body.title !== 'string' || body.title.trim().length === 0)) {
@@ -93,13 +97,14 @@ router.put('/:id', async (c) => {
   if (body.localFile !== undefined) update.localFile = body.localFile?.slice(0, 500) ?? null
   if (body.rating !== undefined) update.rating = body.rating
 
-  db.update(nodes).set(update).where(eq(nodes.id, id)).run()
-  return c.json(db.select().from(nodes).where(eq(nodes.id, id)).get())
+  await db.update(nodes).set(update).where(eq(nodes.id, id))
+  const [updated] = await db.select().from(nodes).where(eq(nodes.id, id)).limit(1)
+  return c.json(updated)
 })
 
-router.delete('/:id', (c) => {
+router.delete('/:id', async (c) => {
   const id = c.req.param('id')
-  db.delete(nodes).where(eq(nodes.id, id)).run()
+  await db.delete(nodes).where(eq(nodes.id, id))
   return c.json({ success: true })
 })
 

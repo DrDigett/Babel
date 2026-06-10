@@ -10,6 +10,8 @@ app = "babel-plus-api"
 [[services]]
   internal_port = 3000
   protocol = "tcp"
+  hard_limit = 25
+  soft_limit = 10
 
   [[services.ports]]
     handlers = ["http"]
@@ -18,10 +20,6 @@ app = "babel-plus-api"
   [[services.ports]]
     handlers = ["tls"]
     port = 443
-
-  [[services.concurrency]]
-    hard_limit = 25
-    soft_limit = 10
 
 [[mounts]]
   source = "babel_data"

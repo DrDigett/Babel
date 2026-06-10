@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import { db } from '../db'
 import { nodes, relations } from '../db/schema'
 import { Hono } from 'hono'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import type { CreateRelationInput, RelationType } from '@babel-plus/shared'
 
 const RELATION_TYPES: RelationType[] = [
@@ -12,15 +12,19 @@ const RELATION_TYPES: RelationType[] = [
 
 const router = new Hono()
 
-router.get('/', (c) => {
+router.get('/', async (c) => {
   const sourceId = c.req.query('sourceId')
   const targetId = c.req.query('targetId')
 
-  const all = db.select().from(relations).all()
-  let filtered = all
-  if (sourceId) filtered = filtered.filter((r) => r.sourceId === sourceId)
-  if (targetId) filtered = filtered.filter((r) => r.targetId === targetId)
-  return c.json(filtered)
+  const conditions = []
+  if (sourceId) conditions.push(eq(relations.sourceId, sourceId))
+  if (targetId) conditions.push(eq(relations.targetId, targetId))
+
+  const all = conditions.length
+    ? await db.select().from(relations).where(and(...conditions))
+    : await db.select().from(relations)
+
+  return c.json(all)
 })
 
 router.post('/', async (c) => {
@@ -35,8 +39,8 @@ router.post('/', async (c) => {
     return c.json({ error: 'source and target must be different' }, 400)
   }
 
-  const sourceExists = db.select({ id: nodes.id }).from(nodes).where(eq(nodes.id, body.sourceId)).get()
-  const targetExists = db.select({ id: nodes.id }).from(nodes).where(eq(nodes.id, body.targetId)).get()
+  const [sourceExists] = await db.select({ id: nodes.id }).from(nodes).where(eq(nodes.id, body.sourceId)).limit(1)
+  const [targetExists] = await db.select({ id: nodes.id }).from(nodes).where(eq(nodes.id, body.targetId)).limit(1)
   if (!sourceExists) return c.json({ error: 'source node not found' }, 404)
   if (!targetExists) return c.json({ error: 'target node not found' }, 404)
 
@@ -53,13 +57,13 @@ router.post('/', async (c) => {
     weight,
     createdAt: new Date().toISOString(),
   }
-  db.insert(relations).values(relation).run()
+  await db.insert(relations).values(relation)
   return c.json(relation, 201)
 })
 
-router.delete('/:id', (c) => {
+router.delete('/:id', async (c) => {
   const id = c.req.param('id')
-  db.delete(relations).where(eq(relations.id, id)).run()
+  await db.delete(relations).where(eq(relations.id, id))
   return c.json({ success: true })
 })
 

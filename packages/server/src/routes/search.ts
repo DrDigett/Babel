@@ -5,13 +5,13 @@ import { like, or } from 'drizzle-orm'
 
 const router = new Hono()
 
-router.get('/', (c) => {
+router.get('/', async (c) => {
   const q = c.req.query('q')
   if (!q) return c.json([])
 
   const sanitized = q.trim().slice(0, 200)
 
-  const results = db
+  const results = await db
     .select()
     .from(nodes)
     .where(
@@ -22,7 +22,6 @@ router.get('/', (c) => {
         like(nodes.tags, `%${sanitized}%`),
       ),
     )
-    .all()
 
   return c.json(results)
 })

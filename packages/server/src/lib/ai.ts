@@ -33,7 +33,7 @@ interface AIResult {
 }
 
 export async function classifyAndSuggest(input: string, typeHint?: string): Promise<AIResult> {
-  const existingNodes = db.select({ title: nodes.title, type: nodes.type }).from(nodes).all()
+  const existingNodes = await db.select({ title: nodes.title, type: nodes.type }).from(nodes)
 
   const grouped: Record<string, string[]> = {}
   for (const n of existingNodes) {
