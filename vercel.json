@@ -1,7 +1,8 @@
 {
-  "buildCommand": "npm run build --workspace=@babel-plus/client",
+  "framework": null,
+  "buildCommand": "cd packages/client && npm run build",
   "outputDirectory": "packages/client/dist",
-  "framework": "vite",
+  "installCommand": "npm install",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
