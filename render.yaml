@@ -18,7 +18,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: GROQ_API_KEY
-        value: PONER_KEY_AQUI
+        value: placeholder
 
 databases:
   - name: babel-plus-db
