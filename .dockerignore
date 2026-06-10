@@ -1,0 +1,10 @@
+node_modules/
+.git/
+data/
+*.db
+.env
+Dockerfile
+.dockerignore
+plan.txt
+Babel.bat
+packages/client/

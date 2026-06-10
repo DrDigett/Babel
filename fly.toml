@@ -1,0 +1,28 @@
+app = "babel-plus-api"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  DB_PATH = "/data/babel.db"
+
+[[services]]
+  internal_port = 3000
+  protocol = "tcp"
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls"]
+    port = 443
+
+  [[services.concurrency]]
+    hard_limit = 25
+    soft_limit = 10
+
+[[mounts]]
+  source = "babel_data"
+  destination = "/data"

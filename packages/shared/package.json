@@ -1,0 +1,11 @@
+{
+  "name": "@babel-plus/shared",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

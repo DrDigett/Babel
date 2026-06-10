@@ -1,0 +1,10 @@
+node_modules/
+dist/
+data/
+drizzle/
+.env
+*.db
+plan.txt
+Babel.bat
+.DS_Store
+*.log
