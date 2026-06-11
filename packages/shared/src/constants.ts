@@ -6,6 +6,8 @@ export const NODE_TYPES = [
   'libro', 'pelicula', 'articulo', 'video', 'curso',
   'evento',
   'videojuego',
+  'concepto', 'autor', 'filosofo', 'cientifico',
+  'director', 'programador', 'escuela',
 ] as const
 
 export const NODE_STATUSES = ['pendiente', 'en_progreso', 'terminado', 'abandonado'] as const

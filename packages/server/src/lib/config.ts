@@ -16,7 +16,7 @@ function optional(key: string, fallback: string): string {
 
 export const config = {
   port: parseInt(optional('PORT', '3000'), 10),
-  databaseUrl: process.env.DATABASE_URL,
+  databaseUrl: required('DATABASE_URL', 'PostgreSQL connection string. Create a free DB at https://render.com or use local postgres'),
   dbPath: optional('DB_PATH', 'data/babel.db'),
   groqApiKey: required('GROQ_API_KEY', 'Get one at https://console.groq.com'),
   corsOrigin: optional('CORS_ORIGIN', '*'),

@@ -5,7 +5,7 @@ import { Hono } from 'hono'
 import { eq, and } from 'drizzle-orm'
 import type { CreateNodeInput, NodeType, NodeStatus, NodePriority } from '@babel-plus/shared'
 
-const NODE_TYPES: NodeType[] = ['libro', 'pelicula', 'articulo', 'video', 'curso', 'evento', 'videojuego']
+const NODE_TYPES: NodeType[] = ['libro', 'pelicula', 'articulo', 'video', 'curso', 'evento', 'videojuego', 'concepto', 'autor', 'filosofo', 'cientifico', 'director', 'programador', 'escuela']
 const NODE_STATUSES: NodeStatus[] = ['pendiente', 'en_progreso', 'terminado', 'abandonado']
 const NODE_PRIORITIES: NodePriority[] = ['alta', 'media', 'baja']
 

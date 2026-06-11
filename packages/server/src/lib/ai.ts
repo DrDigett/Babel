@@ -57,14 +57,14 @@ Interpreta el texto del usuario y extrae la información siguiendo estas reglas:
 
 1. Extraer título del contenido.
 2. Extraer resumen corto (1 frase).
-3. Identificar el tipo correcto entre: libro, pelicula, articulo, video, curso, evento, videojuego.
+3. Identificar el tipo correcto entre: libro, pelicula, articulo, video, curso, evento, videojuego, concepto, autor, filosofo, cientifico, director, programador, escuela.
 4. Identificar autores/directores relevantes.
 5. Identificar año si se menciona.
 6. Identificar conceptos principales.
 7. Identificar corrientes filosóficas o científicas.
 8. Identificar eventos históricos mencionados.
 
-Devuelve SOLO JSON con esta estructura exacta:
+Debes devolver UNICAMENTE un objeto JSON sin texto adicional, usando esta estructura exacta:
 {
   "node": {
     "title": "título del contenido",
@@ -97,22 +97,48 @@ REGLAS IMPORTANTES:
 NODOS EXISTENTES (targetTitle debe coincidir exactamente):
 ${nodeListByType}
 
-Texto del usuario: "${input}"`
+Texto del usuario: "${input}"
 
-  const response = await client.chat.completions.create({
-    model: 'llama-3.1-8b-instant',
-    messages: [{ role: 'user', content: prompt }],
-    temperature: 0.3,
-  })
+JSON:`
 
-  const text = response.choices[0]?.message?.content ?? '{}'
+  let response
+  try {
+    response = await client.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+      response_format: { type: 'json_object' },
+    })
+  } catch (err) {
+    throw new Error(`Groq API error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+  }
 
+  const text = response.choices[0]?.message?.content ?? ''
+
+  const parsed = extractJson(text)
+  if (!parsed) {
+    throw new Error(`AI response parse error: invalid JSON from model. Raw: ${text.slice(0, 300)}`)
+  }
+
+  return parsed as AIResult
+}
+
+function extractJson(text: string): unknown | null {
   const cleaned = text
     .replace(/```json\s*/g, '')
     .replace(/```\s*/g, '')
     .trim()
-
-  const parsed = JSON.parse(cleaned) as AIResult
-
-  return parsed
+  try {
+    return JSON.parse(cleaned)
+  } catch {
+    const match = cleaned.match(/\{[\s\S]*\}/)
+    if (match) {
+      try {
+        return JSON.parse(match[0])
+      } catch {
+        return null
+      }
+    }
+    return null
+  }
 }

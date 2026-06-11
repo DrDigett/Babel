@@ -29,6 +29,11 @@ app.use(
     allowHeaders: ['Content-Type', 'Authorization'],
   }),
 )
+
+app.onError((err, c) => {
+  console.error('Unhandled error:', err)
+  return c.json({ error: err instanceof Error ? err.message : 'Internal server error' }, 500)
+})
 app.route('/api/nodes', nodesRouter)
 app.route('/api/relations', relationsRouter)
 app.route('/api/search', searchRouter)
