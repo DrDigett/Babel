@@ -31,4 +31,12 @@ export async function migrate() {
       created_at TEXT NOT NULL
     )
   `)
+
+  await db.execute(sql`
+    ALTER TABLE nodes DROP COLUMN IF EXISTS index_id
+  `)
+
+  await db.execute(sql`
+    ALTER TABLE relations DROP COLUMN IF EXISTS index_id
+  `)
 }

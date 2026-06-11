@@ -9,7 +9,7 @@ export default function Sidebar() {
   const location = useLocation()
 
   return (
-    <nav style={{
+    <nav className="sidebar" style={{
       width: 200,
       minWidth: 200,
       background: 'rgba(17, 17, 17, 0.9)',

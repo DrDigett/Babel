@@ -1,17 +1,18 @@
 import type { ReactNode } from 'react'
 import Sidebar from './Sidebar'
+import MobileHeader from './MobileHeader'
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar />
-      <main style={{
+      <MobileHeader />
+      <main className="main-content" style={{
         flex: 1,
         padding: '32px 40px',
         minWidth: 0,
         position: 'relative',
       }}>
-        {/* Corner marks */}
         <div className="corner-mark tl" />
         <div className="corner-mark tr" />
         <div className="corner-mark bl" style={{ bottom: 'auto', top: 8 }} />

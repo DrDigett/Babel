@@ -36,7 +36,7 @@ export default function QuickAdd({ onAdded }: Props) {
 
   return (
     <div style={{ marginBottom: 24 }}>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <select
           value={typeHint}
           onChange={(e) => setTypeHint(e.target.value as NodeType | '')}

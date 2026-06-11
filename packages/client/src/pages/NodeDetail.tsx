@@ -146,7 +146,7 @@ export default function NodeDetail() {
   return (
     <div>
       {/* Navigation */}
-      <div style={{
+      <div className="node-detail-nav" style={{
         display: 'flex',
         gap: 16,
         marginBottom: 24,
@@ -161,7 +161,7 @@ export default function NodeDetail() {
       <div className="card">
         <div className="card-label">NODE // DETAIL</div>
 
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 16 }}>
+        <div className="node-detail-header" style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 16 }}>
           <div style={{
             width: 40,
             height: 40,
@@ -206,10 +206,7 @@ export default function NodeDetail() {
           </p>
         )}
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '120px 1fr',
-          gap: '4px 0',
+        <div className="node-detail-grid" style={{
           fontFamily: "'JetBrains Mono', monospace",
           fontSize: 12,
           marginBottom: node.tags ? 12 : 0,
@@ -394,7 +391,7 @@ export default function NodeDetail() {
       {/* Rating */}
       <div className="card">
         <div className="card-label">RATING</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="rating-stars">
           {[1,2,3,4,5,6,7].map((n) => (
             <span
               key={n}
