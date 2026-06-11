@@ -3,7 +3,7 @@ services:
     name: babel-plus-api
     runtime: node
     plan: free
-    buildCommand: npm ci && npm run build
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: node packages/server/dist/index.js
     healthCheckPath: /api/health
     envVars:
