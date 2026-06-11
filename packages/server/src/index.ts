@@ -1,6 +1,8 @@
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { serveStatic } from 'hono/serve-static'
+import { readFile, stat } from 'node:fs/promises'
 import { sql } from 'drizzle-orm'
 import { config } from './lib/config'
 import { db } from './db'
@@ -27,6 +29,28 @@ app.route('/api/search', searchRouter)
 app.route('/api/ai', aiRouter)
 
 app.get('/api/health', (c) => c.json({ status: 'ok' }))
+
+if (config.nodeEnv === 'production') {
+  app.use('/*', serveStatic({
+    root: 'packages/client/dist',
+    getContent: async (path) => {
+      try {
+        const buf = await readFile(path)
+        return buf as unknown as string
+      } catch {
+        return null
+      }
+    },
+    isDir: async (path) => {
+      try {
+        const s = await stat(path)
+        return s.isDirectory()
+      } catch {
+        return false
+      }
+    },
+  }))
+}
 
 async function bootstrap() {
   console.log('Running database migrations...')
