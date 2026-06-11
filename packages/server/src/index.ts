@@ -3,6 +3,8 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serveStatic } from 'hono/serve-static'
 import { readFile, stat } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 import { sql } from 'drizzle-orm'
 import { config } from './lib/config'
 import { db } from './db'
@@ -12,6 +14,10 @@ import aiRouter from './routes/ai'
 import nodesRouter from './routes/nodes'
 import relationsRouter from './routes/relations'
 import searchRouter from './routes/search'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+const clientDist = join(__dirname, '../../client/dist')
 
 const app = new Hono()
 
@@ -32,7 +38,7 @@ app.get('/api/health', (c) => c.json({ status: 'ok' }))
 
 if (config.nodeEnv === 'production') {
   app.use('/*', serveStatic({
-    root: 'packages/client/dist',
+    root: clientDist,
     getContent: async (path) => {
       try {
         const buf = await readFile(path)
