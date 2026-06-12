@@ -33,17 +33,16 @@ interface AIResult {
 }
 
 export async function classifyAndSuggest(input: string, typeHint?: string): Promise<AIResult> {
-  const existingNodes = await db.select({ title: nodes.title, type: nodes.type }).from(nodes)
+  const existingNodes = await db.select({ title: nodes.title, type: nodes.type, description: nodes.description, tags: nodes.tags }).from(nodes)
 
-  const grouped: Record<string, string[]> = {}
-  for (const n of existingNodes) {
-    if (!grouped[n.type]) grouped[n.type] = []
-    grouped[n.type].push(n.title)
-  }
-
-  const nodeListByType = Object.entries(grouped)
-    .map(([type, titles]) => `${type}: ${JSON.stringify(titles)}`)
-    .join('\n')
+  const nodeList = existingNodes.map(n => {
+    const parts = [`  - "${n.title}" (${n.type})`]
+    if (n.description) parts.push(`    Resumen: "${n.description}"`)
+    if (n.tags) {
+      try { parts.push(`    Tags: ${JSON.stringify(JSON.parse(n.tags))}`) } catch { parts.push(`    Tags: ${n.tags}`) }
+    }
+    return parts.join('\n')
+  }).join('\n')
 
   const typeInstruction = typeHint
     ? `IMPORTANTE: El usuario seleccionó manualmente el tipo "${typeHint}". DEBES usar exactamente ese type, no intentes inferirlo.`
@@ -57,7 +56,7 @@ Interpreta el texto del usuario y extrae la información siguiendo estas reglas:
 
 1. Extraer título del contenido.
 2. Extraer resumen corto (1 frase).
-3. Identificar el tipo correcto entre: libro, pelicula, articulo, video, curso, evento, videojuego, concepto, autor, filosofo, cientifico, director, programador, escuela.
+3. Identificar el tipo correcto entre: libro, pelicula, articulo, video, curso, videojuego.
 4. Identificar autores/directores relevantes.
 5. Identificar año si se menciona.
 6. Identificar conceptos principales.
@@ -82,20 +81,26 @@ Debes devolver UNICAMENTE un objeto JSON sin texto adicional, usando esta estruc
   ]
 }
 
-TIPOS DE RELACIÓN DISPONIBLES (usa SOLO estos):
-- trata_sobre: Material → Evento (ej: película → Guerra de Independencia)
-- similar_a: Nodo → Nodo (automático, con peso entre 0 y 1)
+TIPOS DE RELACIÓN DISPONIBLES:
+- es_autor_de: cuando el nuevo contenido fue creado por un autor existente
+- dirigio: cuando el nuevo contenido fue dirigido por un director existente
+- trata_sobre: cuando el nuevo contenido trata sobre un concepto, escuela o evento existente
+- pertenece_a: cuando el nuevo contenido pertenece a una escuela o corriente existente
+- influyo_a: cuando el autor del nuevo contenido influyó en un filosofo/escritor existente
+- critica_a: cuando el nuevo contenido critica a un autor o concepto existente
+- inspiro: cuando el nuevo contenido se inspiró en una obra existente
+- ocurre_en: cuando el nuevo contenido ocurre en un evento o época existente
+- similar_a: cuando el nuevo contenido es temáticamente similar a otro del mismo tipo
 
 REGLAS IMPORTANTES:
-- Cada relación debe responder una pregunta específica. No uses relaciones genéricas.
-- Asigna peso según: 1.0=central, 0.7=importante, 0.4=secundaria, 0.2=débil.
 - Conecta SOLO con nodos EXISTENTES de la lista provista abajo. El targetTitle debe coincidir EXACTAMENTE con el nombre listado.
-- Usa trata_sobre si el nuevo contenido trata sobre un evento existente.
-- similar_a solo entre contenidos del mismo tipo (libro-libro, pelicula-pelicula, videojuego-videojuego) basado en similitud temática real.
+- Usa el RESUMEN y los TAGS de cada nodo existente para decidir si hay relación temática real.
+- Si los TAGS del nuevo nodo coinciden o son similares a los TAGS de un nodo existente, genera una relación "trata_sobre". El peso debe ser proporcional a la cantidad de tags compartidos (1.0 si comparte 3+, 0.7 si 2, 0.4 si 1).
 - No inventes nodos. Solo relaciona con los que YA EXISTEN en la lista de abajo.
+- similar_a solo entre contenidos del mismo tipo (libro-libro, pelicula-pelicula, videojuego-videojuego).
 
-NODOS EXISTENTES (targetTitle debe coincidir exactamente):
-${nodeListByType}
+NODOS EXISTENTES (targetTitle debe coincidir exactamente, usa su resumen y tags para decidir relaciones):
+${nodeList}
 
 Texto del usuario: "${input}"
 

@@ -79,7 +79,6 @@ export default function Dashboard() {
           Agregar nuevo contenido o buscar en el índice existente.
         </p>
         <QuickAdd onAdded={() => api.nodes.list().then(setNodes)} />
-        <SearchBar onSearch={handleSearch} />
       </div>
 
       {/* Section 02: Filter */}
@@ -123,6 +122,7 @@ export default function Dashboard() {
       <div className="card" style={{ marginBottom: 0 }}>
         <div className="card-label">03 // DATA_LOG</div>
         <h2>Índice de Nodos</h2>
+        <SearchBar onSearch={handleSearch} />
         <p className="desc">
           {results
             ? `Resultados de búsqueda: ${displayNodes.length}`
@@ -154,7 +154,11 @@ export default function Dashboard() {
               textAlign: 'center',
               padding: 24,
             }}>
-              {activeFilter ? 'No hay resultados para este filtro' : 'No hay elementos aún'}
+              {results !== null
+                ? 'Sin resultados'
+                : activeFilter
+                  ? 'No hay resultados para este filtro'
+                  : 'No hay elementos aún'}
             </div>
           )}
         </div>

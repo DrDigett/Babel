@@ -54,14 +54,9 @@ export default function QuickAdd({ onAdded }: Props) {
           }}
         >
           <option value="">Auto</option>
-          <optgroup label="Material">
-            {NODE_TYPES.filter(t => !['evento'].includes(t)).map(t => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </optgroup>
-          <optgroup label="Evento">
-            <option value="evento">evento</option>
-          </optgroup>
+          {NODE_TYPES.map(t => (
+            <option key={t} value={t}>{t}</option>
+          ))}
         </select>
         <input
           value={text}

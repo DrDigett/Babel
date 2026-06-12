@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useEffect, useRef, type FormEvent } from 'react'
 
 interface SearchBarProps {
   onSearch: (q: string) => void
@@ -6,6 +6,13 @@ interface SearchBarProps {
 
 export default function SearchBar({ onSearch }: SearchBarProps) {
   const [value, setValue] = useState('')
+  const timer = useRef<ReturnType<typeof setTimeout>>()
+
+  useEffect(() => {
+    clearTimeout(timer.current)
+    timer.current = setTimeout(() => onSearch(value), 300)
+    return () => clearTimeout(timer.current)
+  }, [value])
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
@@ -30,10 +37,7 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
             type="button"
             className="btn"
             style={{ fontSize: 11 }}
-            onClick={() => {
-              setValue('')
-              onSearch('')
-            }}
+            onClick={() => { setValue(''); onSearch('') }}
           >
             ✕
           </button>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
+import { RELATION_TYPE_WEIGHTS } from '@babel-plus/shared'
 import type { Node, Relation } from '@babel-plus/shared'
 
 const COLORS: Record<string, string> = {
@@ -9,7 +10,6 @@ const COLORS: Record<string, string> = {
   articulo: '#4a90d9',
   video: '#9b59b6',
   curso: '#9b59b6',
-  evento: '#f1c40f',
   videojuego: '#e67e22',
 }
 
@@ -29,6 +29,7 @@ interface GraphNode {
   id: string
   title: string
   type: string
+  author: string | null
   x: number
   y: number
   vx: number
@@ -43,6 +44,7 @@ interface GraphEdge {
   targetId: string
   label: string
   weight: number
+  typeWeight: number
 }
 
 interface Camera {
@@ -99,11 +101,12 @@ export default function GraphView() {
           id: n.id,
           title: n.title,
           type: n.type,
+          author: n.author ?? null,
           x: 400 + Math.cos(angle) * radius,
           y: 300 + Math.sin(angle) * radius,
           vx: 0,
           vy: 0,
-          radius: n.status === 'terminado' ? 6 : (n.type === 'evento' ? 18 : 14),
+          radius: n.status === 'terminado' ? 6 : 14,
           color: COLORS[n.type] ?? '#95a5a6',
           terminado: n.status === 'terminado',
         }
@@ -116,6 +119,7 @@ export default function GraphView() {
           targetId: r.targetId,
           label: EDGE_LABELS[r.type] ?? r.type,
           weight: r.weight ?? 1,
+          typeWeight: RELATION_TYPE_WEIGHTS[r.type] ?? 1,
         }))
 
       nodesRef.current = nodes
@@ -459,7 +463,7 @@ export default function GraphView() {
           minHeight: 18,
         }}>
           {hoveredNode ? (
-            <>{'>'} {hoveredNode.title} <span style={{ color: '#546E7A' }}>[{hoveredNode.type}]</span></>
+            <>{'>'} {hoveredNode.title} <span style={{ color: '#546E7A' }}>[{hoveredNode.type}]</span>{hoveredNode.author ? <span style={{ color: '#757575' }}> por {hoveredNode.author}</span> : null}</>
           ) : (
             <>{'>'} ...</>
           )}
@@ -597,7 +601,7 @@ function draw(ctx: CanvasRenderingContext2D, W: number, H: number, nodes: GraphN
     ctx.font = '10px "JetBrains Mono", monospace'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'bottom'
-    ctx.fillText(edge.label, midX, midY - 4)
+    ctx.fillText(`${edge.label} [${edge.typeWeight}]`, midX, midY - 4)
   }
 
   ctx.save()

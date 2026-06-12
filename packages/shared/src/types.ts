@@ -1,6 +1,5 @@
-import type { NODE_TYPES, NODE_STATUSES, NODE_PRIORITIES, RELATION_TYPES, NODE_TYPE_CATEGORIES } from './constants'
+import type { NODE_TYPES, NODE_STATUSES, NODE_PRIORITIES, RELATION_TYPES } from './constants'
 
-export type NodeTypeCategory = typeof NODE_TYPE_CATEGORIES[number]
 export type NodeType = typeof NODE_TYPES[number]
 export type NodeStatus = typeof NODE_STATUSES[number]
 export type NodePriority = typeof NODE_PRIORITIES[number]

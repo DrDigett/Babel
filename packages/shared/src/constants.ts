@@ -1,13 +1,6 @@
-export const NODE_TYPE_CATEGORIES = [
-  'material', 'evento',
-] as const
-
 export const NODE_TYPES = [
   'libro', 'pelicula', 'articulo', 'video', 'curso',
-  'evento',
   'videojuego',
-  'concepto', 'autor', 'filosofo', 'cientifico',
-  'director', 'programador', 'escuela',
 ] as const
 
 export const NODE_STATUSES = ['pendiente', 'en_progreso', 'terminado', 'abandonado'] as const
@@ -25,3 +18,17 @@ export const RELATION_TYPES = [
   'ocurre_en',
   'similar_a',
 ] as const
+
+export const RELATION_TYPE_WEIGHTS: Record<string, number> = {
+  es_autor_de: 4,
+  dirigio: 4,
+  trata_sobre: 4,
+  pertenece_a: 3,
+  influyo_a: 3,
+  critica_a: 4,
+  inspiro: 3,
+  ocurre_en: 1,
+  similar_a: 1,
+}
+
+export const RELATION_THRESHOLD = 4

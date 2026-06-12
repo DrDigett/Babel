@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import type { Node, Relation } from '@babel-plus/shared'
-import type { RelationType } from '@babel-plus/shared'
+import { RELATION_TYPE_WEIGHTS } from '@babel-plus/shared'
+import type { Node, Relation, RelationType } from '@babel-plus/shared'
 
 const EDGE_LABELS: Record<string, string> = {
   es_autor_de: 'es_autor_de',
@@ -33,7 +33,6 @@ export default function NodeDetail() {
   const [searchResults, setSearchResults] = useState<Node[]>([])
   const [selectedTarget, setSelectedTarget] = useState<Node | null>(null)
   const [relType, setRelType] = useState<RelationType>('similar_a')
-  const [relWeight, setRelWeight] = useState(0.7)
   const [adding, setAdding] = useState(false)
   const [rating, setRating] = useState<number | null>(null)
   const searchRef = useRef<HTMLDivElement>(null)
@@ -99,7 +98,6 @@ export default function NodeDetail() {
       sourceId: id,
       targetId: selectedTarget.id,
       type: relType,
-      weight: relWeight,
     })
     setAdding(false)
     setShowAdd(false)
@@ -121,26 +119,13 @@ export default function NodeDetail() {
     </div>
   )
 
-  const weightColor = (w: number) => {
-    if (w >= 0.8) return '#66bb6a'
-    if (w >= 0.5) return '#f9a825'
-    return '#757575'
-  }
-
   const typeColors: Record<string, string> = {
     libro: '#4a90d9',
     pelicula: '#50c878',
-    serie: '#50c878',
     articulo: '#4a90d9',
-    autor: '#e67e22',
-    filosofo: '#e67e22',
-    cientifico: '#e67e22',
-    director: '#e67e22',
-    programador: '#e67e22',
-    concepto: '#e74c3c',
-    tema: '#e74c3c',
-    evento: '#f1c40f',
-    escuela: '#1abc9c',
+    video: '#9b59b6',
+    curso: '#9b59b6',
+    videojuego: '#e67e22',
   }
 
   return (
@@ -199,12 +184,6 @@ export default function NodeDetail() {
             </div>
           </div>
         </div>
-
-        {node.description && (
-          <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#757575', lineHeight: 1.6, marginBottom: 16 }}>
-            {node.description}
-          </p>
-        )}
 
         <div className="node-detail-grid" style={{
           fontFamily: "'JetBrains Mono', monospace",
@@ -305,26 +284,9 @@ export default function NodeDetail() {
                 }}
               >
                 {RELATION_TYPES.map((t) => (
-                  <option key={t} value={t}>{EDGE_LABELS[t] ?? t}</option>
+                  <option key={t} value={t}>{EDGE_LABELS[t] ?? t} [{RELATION_TYPE_WEIGHTS[t]}]</option>
                 ))}
               </select>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#546E7A' }}>
-                  PESO
-                </span>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={relWeight}
-                  onChange={(e) => setRelWeight(parseFloat(e.target.value))}
-                  style={{ width: 80 }}
-                />
-                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: weightColor(relWeight), minWidth: 24 }}>
-                  {relWeight.toFixed(1)}
-                </span>
-              </div>
             </div>
             <button
               className="btn"
@@ -347,13 +309,9 @@ export default function NodeDetail() {
             <span className="id">{String(i + 1).padStart(2, '0')}</span>
             <span className="val">
               → {relatedNodes[i]?.title ?? r.targetId}
-              <span className="type-tag">{EDGE_LABELS[r.type] ?? r.type}</span>
+              <span className="type-tag">{EDGE_LABELS[r.type] ?? r.type} [{RELATION_TYPE_WEIGHTS[r.type]}]</span>
             </span>
-            <span className="stat">
-              <span className="weight-badge" style={{ color: weightColor(r.weight ?? 1) }}>
-                {r.weight?.toFixed(1) ?? '1.0'}
-              </span>
-            </span>
+            <span className="stat" />
           </div>
         ))}
       </div>
@@ -367,13 +325,9 @@ export default function NodeDetail() {
               <span className="id">{String(i + 1).padStart(2, '0')}</span>
               <span className="val">
                 ← {r.sourceTitle ?? r.sourceId}
-                <span className="type-tag">{EDGE_LABELS[r.type] ?? r.type}</span>
+                <span className="type-tag">{EDGE_LABELS[r.type] ?? r.type} [{RELATION_TYPE_WEIGHTS[r.type]}]</span>
               </span>
-              <span className="stat">
-                <span className="weight-badge" style={{ color: weightColor(r.weight ?? 1) }}>
-                  {r.weight?.toFixed(1) ?? '1.0'}
-                </span>
-              </span>
+              <span className="stat" />
             </div>
           ))}
         </div>

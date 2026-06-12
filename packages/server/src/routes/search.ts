@@ -1,7 +1,7 @@
 import { db } from '../db'
 import { nodes } from '../db/schema'
 import { Hono } from 'hono'
-import { like, or } from 'drizzle-orm'
+import { ilike, or } from 'drizzle-orm'
 
 const router = new Hono()
 
@@ -16,10 +16,10 @@ router.get('/', async (c) => {
     .from(nodes)
     .where(
       or(
-        like(nodes.title, `%${sanitized}%`),
-        like(nodes.description, `%${sanitized}%`),
-        like(nodes.author, `%${sanitized}%`),
-        like(nodes.tags, `%${sanitized}%`),
+        ilike(nodes.title, `%${sanitized}%`),
+        ilike(nodes.description, `%${sanitized}%`),
+        ilike(nodes.author, `%${sanitized}%`),
+        ilike(nodes.tags, `%${sanitized}%`),
       ),
     )
 
