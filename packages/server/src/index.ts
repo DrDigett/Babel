@@ -5,15 +5,16 @@ import { serveStatic } from 'hono/serve-static'
 import { readFile, stat } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { sql } from 'drizzle-orm'
+import { sql, asc } from 'drizzle-orm'
 import { config } from './lib/config'
 import { db } from './db'
-import { nodes } from './db/schema'
+import { nodes, lists, listNodes } from './db/schema'
 import { migrate } from './db/migrate'
 import aiRouter from './routes/ai'
 import nodesRouter from './routes/nodes'
 import relationsRouter from './routes/relations'
 import searchRouter from './routes/search'
+import listsRouter from './routes/lists'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -38,6 +39,7 @@ app.route('/api/nodes', nodesRouter)
 app.route('/api/relations', relationsRouter)
 app.route('/api/search', searchRouter)
 app.route('/api/ai', aiRouter)
+app.route('/api/lists', listsRouter)
 
 app.get('/api/health', (c) => c.json({ status: 'ok' }))
 
@@ -73,7 +75,38 @@ async function bootstrap() {
     const { seed } = await import('./db/seed')
     await seed()
   } else {
-    console.log(`Database has ${count} nodes, skipping seed`)
+    console.log(`Database has ${count} nodes, skipping node seed`)
+  }
+
+  const [{ listCount }] = await db.select({ listCount: sql<number>`count(*)` }).from(lists)
+  if (listCount === 0) {
+    console.log('Lists table is empty, seeding lists...')
+    const allNodes = await db.select({ id: nodes.id, title: nodes.title }).from(nodes).orderBy(asc(nodes.createdAt))
+    if (allNodes.length > 0) {
+      const crypto = await import('node:crypto')
+      const now = new Date().toISOString()
+      const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+      let listId = ''
+      for (let i = 0; i < 4; i++) listId += chars[Math.floor(Math.random() * chars.length)]
+
+      await db.insert(lists).values({
+        id: listId,
+        name: 'Todos los nodos',
+        description: 'Lista principal con todos los nodos del grafo',
+        createdAt: now,
+        updatedAt: now,
+      })
+
+      const entries = allNodes.map((n, i) => ({
+        id: crypto.randomUUID(),
+        listId,
+        nodeId: n.id,
+        position: i,
+        createdAt: now,
+      }))
+      await db.insert(listNodes).values(entries)
+      console.log(`Lista '${listId}' creada con ${entries.length} nodos`)
+    }
   }
 
   serve(

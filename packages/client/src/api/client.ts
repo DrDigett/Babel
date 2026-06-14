@@ -34,4 +34,15 @@ export const api = {
     classify: (text: string, typeHint?: string) => request<any>('/ai/classify', { method: 'POST', body: JSON.stringify({ text, typeHint }) }),
     smartAdd: (text: string, typeHint?: string) => request<any>('/ai/smart-add', { method: 'POST', body: JSON.stringify({ text, typeHint }) }),
   },
+  lists: {
+    list: () => request<any[]>('/lists'),
+    get: (id: string) => request<any>(`/lists/${id}`),
+    create: (data: any) => request<any>('/lists', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) => request<any>(`/lists/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) => request<any>(`/lists/${id}`, { method: 'DELETE' }),
+    addNode: (listId: string, nodeId: string) => request<any>(`/lists/${listId}/nodes`, { method: 'POST', body: JSON.stringify({ nodeId }) }),
+    updateNodeRating: (listId: string, nodeId: string, rating: number | null) => request<any>(`/lists/${listId}/nodes/${nodeId}/rating`, { method: 'PUT', body: JSON.stringify({ rating }) }),
+    removeNode: (listId: string, nodeId: string) => request<any>(`/lists/${listId}/nodes/${nodeId}`, { method: 'DELETE' }),
+    reorder: (listId: string, nodeIds: string[]) => request<any>(`/lists/${listId}/nodes/reorder`, { method: 'PUT', body: JSON.stringify({ nodeIds }) }),
+  },
 }

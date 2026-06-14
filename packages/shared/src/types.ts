@@ -51,3 +51,20 @@ export interface CreateRelationInput {
   type: RelationType
   weight?: number
 }
+
+export interface List {
+  id: string
+  name: string
+  description: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ListWithNodes extends List {
+  nodes: (Node & { position: number })[]
+}
+
+export interface CreateListInput {
+  name: string
+  description?: string
+}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { RELATION_TYPE_WEIGHTS } from '@babel-plus/shared'
 import type { Node, Relation, RelationType } from '@babel-plus/shared'
@@ -24,6 +24,8 @@ const RELATION_TYPES: RelationType[] = [
 export default function NodeDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const listId = searchParams.get('listId')
   const [node, setNode] = useState<Node | null>(null)
   const [relations, setRelations] = useState<(Relation & { targetTitle?: string })[]>([])
   const [relatedNodes, setRelatedNodes] = useState<Node[]>([])
@@ -38,32 +40,50 @@ export default function NodeDetail() {
   const searchRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (node) setRating(node.rating)
-  }, [node])
+    if (!node || listId) return
+    setRating(node.rating)
+  }, [node, listId])
 
   useEffect(() => {
     if (!id) return
     loadNode()
-  }, [id])
+  }, [id, listId])
 
   async function loadNode() {
     if (!id) return
     const n = await api.nodes.get(id)
     setNode(n)
+
+    let listIdSet: Set<string> | null = null
+    if (listId) {
+      try {
+        const list = await api.lists.get(listId)
+        listIdSet = new Set((list.nodes ?? []).map((x: any) => x.id))
+        const current = (list.nodes ?? []).find((x: any) => x.id === id)
+        if (current?.listRating !== undefined && current?.listRating !== null) {
+          setRating(current.listRating)
+        }
+      } catch { listIdSet = null }
+    }
+
     const [outgoing, incoming] = await Promise.all([
       api.relations.list(`sourceId=${id}`),
       api.relations.list(`targetId=${id}`),
     ])
-    setRelations(outgoing)
+
+    const filteredOut = listIdSet ? outgoing.filter((r: Relation) => listIdSet!.has(r.targetId)) : outgoing
+    setRelations(filteredOut)
     const targets = await Promise.all(
-      outgoing.map((r: Relation) => api.nodes.get(r.targetId)),
+      filteredOut.map((r: Relation) => api.nodes.get(r.targetId)),
     )
     setRelatedNodes(targets)
+
+    const filteredIn = listIdSet ? incoming.filter((r: Relation) => listIdSet!.has(r.sourceId)) : incoming
     const sources = await Promise.all(
-      incoming.map((r: Relation) => api.nodes.get(r.sourceId)),
+      filteredIn.map((r: Relation) => api.nodes.get(r.sourceId)),
     )
     setIncomingRelations(
-      incoming.map((r: Relation, i: number) => ({ ...r, sourceTitle: sources[i]?.title })),
+      filteredIn.map((r: Relation, i: number) => ({ ...r, sourceTitle: sources[i]?.title })),
     )
   }
 
@@ -138,8 +158,8 @@ export default function NodeDetail() {
         fontFamily: "'JetBrains Mono', monospace",
         fontSize: 11,
       }}>
-        <Link to="/" style={{ color: '#546E7A' }}>{'<'} INICIO</Link>
-        <Link to="/graph" style={{ color: '#546E7A' }}>{'<'} GRAFO</Link>
+        <Link to={listId ? `/dashboard?listId=${listId}` : '/'} style={{ color: '#546E7A' }}>{'<'} INICIO</Link>
+        <Link to={listId ? `/graph?listId=${listId}` : '/graph'} style={{ color: '#546E7A' }}>{'<'} GRAFO</Link>
       </div>
 
       {/* Node info */}
@@ -304,8 +324,8 @@ export default function NodeDetail() {
           </div>
         )}
 
-        {relations.map((r, i) => (
-          <div key={r.id} className="data-row" onClick={() => navigate(`/node/${r.targetId}`)} style={{ cursor: 'pointer' }}>
+          {relations.map((r, i) => (
+          <div key={r.id} className="data-row" onClick={() => navigate(`/node/${r.targetId}${listId ? `?listId=${listId}` : ''}`)} style={{ cursor: 'pointer' }}>
             <span className="id">{String(i + 1).padStart(2, '0')}</span>
             <span className="val">
               → {relatedNodes[i]?.title ?? r.targetId}
@@ -321,7 +341,7 @@ export default function NodeDetail() {
           <div className="card-label">RELATIONS // IN</div>
           <h2>Relaciones Entrantes</h2>
           {incomingRelations.map((r, i) => (
-            <div key={r.id} className="data-row" onClick={() => navigate(`/node/${r.sourceId}`)} style={{ cursor: 'pointer' }}>
+            <div key={r.id} className="data-row" onClick={() => navigate(`/node/${r.sourceId}${listId ? `?listId=${listId}` : ''}`)} style={{ cursor: 'pointer' }}>
               <span className="id">{String(i + 1).padStart(2, '0')}</span>
               <span className="val">
                 ← {r.sourceTitle ?? r.sourceId}
@@ -351,7 +371,11 @@ export default function NodeDetail() {
               key={n}
               onClick={async () => {
                 const newRating = rating === n ? null : n
-                await api.nodes.update(node.id, { rating: newRating })
+                if (listId && id) {
+                  await api.lists.updateNodeRating(listId, id, newRating)
+                } else if (id) {
+                  await api.nodes.update(id, { rating: newRating })
+                }
                 setRating(newRating)
               }}
               style={{
@@ -403,9 +427,16 @@ export default function NodeDetail() {
       <div style={{ marginTop: 32 }}>
         <button
           onClick={async () => {
-            if (confirm(`¿Eliminar "${node.title}" definitivamente?`)) {
-              await api.nodes.delete(node.id)
-              navigate('/')
+            if (listId) {
+              if (confirm(`¿Quitar "${node.title}" de esta lista?`)) {
+                await api.lists.removeNode(listId, node.id)
+                navigate(`/dashboard?listId=${listId}`)
+              }
+            } else {
+              if (confirm(`¿Eliminar "${node.title}" definitivamente?`)) {
+                await api.nodes.delete(node.id)
+                navigate('/')
+              }
             }
           }}
           className="btn btn-danger"

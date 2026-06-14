@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import SearchBar from '../components/SearchBar'
 import QuickAdd from '../components/QuickAdd'
@@ -19,13 +19,28 @@ const filters: { label: string; filter: FilterValue }[] = [
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [nodes, setNodes] = useState<Node[]>([])
   const [results, setResults] = useState<Node[] | null>(null)
   const [activeFilter, setActiveFilter] = useState<Filter>(null)
+  const [newListId, setNewListId] = useState<string | null>(searchParams.get('newListId'))
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const listId = searchParams.get('listId')
 
   useEffect(() => {
-    api.nodes.list().then(setNodes)
-  }, [])
+    if (listId) {
+      api.lists.get(listId).then((list) => {
+        if (list.nodes && list.nodes.length > 0) {
+          setNodes(list.nodes)
+          return
+        }
+        setNodes([])
+      }).catch(() => api.nodes.list().then(setNodes))
+    } else {
+      api.nodes.list().then(setNodes)
+    }
+  }, [listId])
 
   const handleSearch = async (q: string) => {
     if (!q) {
@@ -69,8 +84,169 @@ export default function Dashboard() {
     )
   }
 
+  const handleCopyId = async () => {
+    if (newListId) {
+      try {
+        await navigator.clipboard.writeText(newListId)
+        if (inputRef.current) inputRef.current.value = '¡COPIADO!'
+      } catch {
+        const el = document.createElement('textarea')
+        el.value = newListId
+        document.body.appendChild(el)
+        el.select()
+        document.execCommand('copy')
+        document.body.removeChild(el)
+        if (inputRef.current) inputRef.current.value = '¡COPIADO!'
+      }
+    }
+  }
+
   return (
     <div>
+      {newListId && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            background: 'rgba(0,0,0,0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: "'JetBrains Mono', monospace",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setNewListId(null)
+              navigate(`/dashboard?listId=${newListId}`, { replace: true })
+            }
+          }}
+        >
+          <div style={{
+            background: '#111',
+            border: '1px solid #333',
+            padding: '48px 56px',
+            maxWidth: 440,
+            width: '100%',
+            textAlign: 'center',
+            position: 'relative',
+          }}>
+            <div className="corner-mark tl" />
+            <div className="corner-mark tr" />
+            <div className="corner-mark bl" style={{ bottom: 'auto', top: 8 }} />
+            <div className="corner-mark br" style={{ bottom: 'auto', top: 8 }} />
+
+            <div
+              onClick={() => {
+                setNewListId(null)
+                navigate(`/dashboard?listId=${newListId}`, { replace: true })
+              }}
+              style={{
+                position: 'absolute',
+                top: 12,
+                right: 16,
+                fontSize: 18,
+                color: '#555',
+                cursor: 'pointer',
+                fontFamily: "'JetBrains Mono', monospace",
+                lineHeight: 1,
+                transition: 'color 0.1s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#E0E0E0')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#555')}
+            >
+              ✕
+            </div>
+
+            <div style={{
+              fontSize: 24,
+              fontWeight: 700,
+              color: '#CFD8DC',
+              letterSpacing: 2,
+              marginBottom: 8,
+              textTransform: 'uppercase',
+            }}>
+              FELICIDADES
+            </div>
+            <div style={{
+              fontSize: 14,
+              color: '#757575',
+              marginBottom: 4,
+              letterSpacing: 1,
+            }}>
+              CREASTE TU PRIMER
+            </div>
+            <div style={{
+              fontSize: 36,
+              fontWeight: 800,
+              color: '#546E7A',
+              fontFamily: "'Inter', sans-serif",
+              letterSpacing: -1,
+              marginBottom: 24,
+            }}>
+              BaBel+
+            </div>
+
+            <div style={{
+              borderTop: '1px solid #2A2A2A',
+              borderBottom: '1px solid #2A2A2A',
+              padding: '20px 0',
+              marginBottom: 20,
+            }}>
+              <div style={{
+                fontSize: 10,
+                color: '#546E7A',
+                letterSpacing: 2,
+                textTransform: 'uppercase',
+                marginBottom: 8,
+              }}>
+                ID
+              </div>
+              <div style={{
+                fontSize: 32,
+                fontWeight: 700,
+                color: '#E0E0E0',
+                letterSpacing: 8,
+                textTransform: 'uppercase',
+              }}>
+                {newListId}
+              </div>
+            </div>
+
+            <input
+              ref={inputRef}
+              readOnly
+              onClick={handleCopyId}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: '#1a1a1a',
+                border: '1px solid #333',
+                color: '#757575',
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 10,
+                textAlign: 'center',
+                cursor: 'pointer',
+                marginBottom: 16,
+                outline: 'none',
+              }}
+              value="tomale screenshot a tu id para guardarlo"
+            />
+
+            <button
+              onClick={() => {
+                setNewListId(null)
+                navigate(`/dashboard?listId=${newListId}`, { replace: true })
+              }}
+              className="btn btn-primary"
+              style={{ width: '100%', padding: '12px', fontSize: 12 }}
+            >
+              ENTRAR
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Section 01: Input */}
       <div className="card">
         <div className="card-label">01 // INPUT</div>
@@ -78,7 +254,18 @@ export default function Dashboard() {
         <p className="desc">
           Agregar nuevo contenido o buscar en el índice existente.
         </p>
-        <QuickAdd onAdded={() => api.nodes.list().then(setNodes)} />
+        <QuickAdd
+          listId={listId ?? undefined}
+          onAdded={() => {
+            if (listId) {
+              api.lists.get(listId).then((list) => {
+                setNodes(list.nodes?.length > 0 ? list.nodes : [])
+              }).catch(() => setNodes([]))
+            } else {
+              api.nodes.list().then(setNodes)
+            }
+          }}
+        />
       </div>
 
       {/* Section 02: Filter */}
@@ -134,7 +321,7 @@ export default function Dashboard() {
             <div
               key={node.id}
               className="data-row"
-              onClick={() => navigate(`/node/${node.id}`)}
+              onClick={() => navigate(`/node/${node.id}${listId ? `?listId=${listId}` : ''}`)}
             >
               <span className="id">{String(i + 1).padStart(2, '0')}</span>
               <span className="val">

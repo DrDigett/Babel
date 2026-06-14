@@ -5,9 +5,10 @@ import type { NodeType } from '@babel-plus/shared'
 
 interface Props {
   onAdded: () => void
+  listId?: string
 }
 
-export default function QuickAdd({ onAdded }: Props) {
+export default function QuickAdd({ onAdded, listId }: Props) {
   const [text, setText] = useState('')
   const [typeHint, setTypeHint] = useState<NodeType | ''>('')
   const [loading, setLoading] = useState(false)
@@ -24,6 +25,9 @@ export default function QuickAdd({ onAdded }: Props) {
 
     try {
       const res = await api.ai.smartAdd(text, typeHint || undefined)
+      if (listId && res.node?.id) {
+        await api.lists.addNode(listId, res.node.id).catch(() => {})
+      }
       setResult(res)
       setText('')
       onAdded()

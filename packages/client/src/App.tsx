@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
+import HomePage from './pages/HomePage'
 import Dashboard from './pages/Dashboard'
 import NodeDetail from './pages/NodeDetail'
 import GraphView from './pages/GraphView'
@@ -7,13 +8,12 @@ import GraphView from './pages/GraphView'
 export default function App() {
   return (
     <BrowserRouter>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/node/:id" element={<NodeDetail />} />
-          <Route path="/graph" element={<GraphView />} />
-        </Routes>
-      </Layout>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/dashboard" element={<Layout><Dashboard /></Layout>} />
+        <Route path="/graph" element={<Layout><GraphView /></Layout>} />
+        <Route path="/node/:id" element={<Layout><NodeDetail /></Layout>} />
+      </Routes>
     </BrowserRouter>
   )
 }

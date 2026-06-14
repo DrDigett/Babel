@@ -1,4 +1,4 @@
-import { pgTable, text, integer, real } from 'drizzle-orm/pg-core'
+import { pgTable, text, integer, real, unique } from 'drizzle-orm/pg-core'
 
 export const nodes = pgTable('nodes', {
   id: text('id').primaryKey(),
@@ -25,3 +25,22 @@ export const relations = pgTable('relations', {
   weight: real('weight').notNull().default(1.0),
   createdAt: text('created_at').notNull(),
 })
+
+export const lists = pgTable('lists', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+})
+
+export const listNodes = pgTable('list_nodes', {
+  id: text('id').primaryKey(),
+  listId: text('list_id').notNull().references(() => lists.id, { onDelete: 'cascade' }),
+  nodeId: text('node_id').notNull().references(() => nodes.id, { onDelete: 'cascade' }),
+  position: integer('position').notNull().default(0),
+  rating: integer('rating'),
+  createdAt: text('created_at').notNull(),
+}, (table) => ({
+  uniqueListNode: unique().on(table.listId, table.nodeId),
+}))

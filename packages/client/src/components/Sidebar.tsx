@@ -1,12 +1,14 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useSearchParams } from 'react-router-dom'
 
 const links = [
-  { to: '/', label: 'Inicio', icon: '01' },
+  { to: '/dashboard', label: 'Inicio', icon: '01' },
   { to: '/graph', label: 'Grafo', icon: '02' },
 ]
 
 export default function Sidebar() {
   const location = useLocation()
+  const [searchParams] = useSearchParams()
+  const listId = searchParams.get('listId')
 
   return (
     <nav className="sidebar" style={{
@@ -48,10 +50,11 @@ export default function Sidebar() {
         {links.map((link) => {
           const isActive = location.pathname === link.to ||
             (link.to !== '/' && location.pathname.startsWith(link.to))
+          const to = listId ? `${link.to}?listId=${listId}` : link.to
           return (
             <li key={link.to} style={{ marginBottom: 4 }}>
               <NavLink
-                to={link.to}
+                to={to}
                 style={{
                   display: 'flex',
                   alignItems: 'center',

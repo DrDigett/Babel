@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { RELATION_TYPE_WEIGHTS } from '@babel-plus/shared'
 import type { Node, Relation } from '@babel-plus/shared'
@@ -62,6 +62,8 @@ function screenToWorld(sx: number, sy: number, cam: Camera) {
 
 export default function GraphView() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const listId = searchParams.get('listId')
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animRef = useRef<number>(0)
   const nodesRef = useRef<GraphNode[]>([])
@@ -87,10 +89,22 @@ export default function GraphView() {
 
   const loadData = useCallback(async () => {
     try {
-      const [nodeData, relationData] = await Promise.all([
-        api.nodes.list(),
-        api.relations.list(),
-      ])
+      let nodeIds: string[] | null = null
+      if (listId) {
+        const list = await api.lists.get(listId)
+        nodeIds = (list.nodes ?? []).map((n: any) => n.id)
+      }
+
+      let nodeData: Node[]
+      if (nodeIds) {
+        const allNodes = await api.nodes.list()
+        const idSet = new Set(nodeIds)
+        nodeData = allNodes.filter((n: Node) => idSet.has(n.id))
+      } else {
+        nodeData = await api.nodes.list()
+      }
+
+      const relationData = await api.relations.list()
 
       const visibleIds = new Set(nodeData.map((n: Node) => n.id))
 
@@ -129,7 +143,7 @@ export default function GraphView() {
       setError(err instanceof Error ? err.message : 'Error al cargar datos')
       setLoading(false)
     }
-  }, [])
+  }, [listId])
 
   const focusNode = useCallback((node: GraphNode) => {
     const fresh = nodesRef.current.find(n => n.id === node.id)
@@ -330,7 +344,7 @@ export default function GraphView() {
         const dx = Math.abs(pos.sx - drag.startX)
         const dy = Math.abs(pos.sy - drag.startY)
         if (dx < 5 && dy < 5) {
-          navigate(`/node/${drag.node.id}`)
+          navigate(`/node/${drag.node.id}${listId ? `?listId=${listId}` : ''}`)
         }
       }
       dragRef.current = { type: null, node: null, ox: 0, oy: 0, startX: 0, startY: 0, camStart: { x: 0, y: 0, scale: 1 } }

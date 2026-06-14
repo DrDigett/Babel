@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 import { db } from './index'
-import { nodes, relations } from './schema'
+import { nodes, relations, lists, listNodes } from './schema'
+import { eq, asc, sql } from 'drizzle-orm'
 
 const now = new Date().toISOString()
 
@@ -462,12 +463,48 @@ const seedRelations = [
   },
 ]
 
+async function seedLists() {
+  const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(lists)
+  if (count > 0) {
+    console.log(`Lists table has ${count} lists, skipping list seed`)
+    return
+  }
+
+  const allNodes = await db.select({ id: nodes.id, title: nodes.title }).from(nodes).orderBy(asc(nodes.createdAt))
+  if (allNodes.length === 0) return
+
+  const now = new Date().toISOString()
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+  let listId = ''
+  for (let i = 0; i < 4; i++) listId += chars[Math.floor(Math.random() * chars.length)]
+  const list = {
+    id: listId,
+    name: 'Todos los nodos',
+    description: 'Lista principal con todos los nodos del grafo',
+    createdAt: now,
+    updatedAt: now,
+  }
+  await db.insert(lists).values(list)
+
+  const entries = allNodes.map((n, i) => ({
+    id: crypto.randomUUID(),
+    listId: list.id,
+    nodeId: n.id,
+    position: i,
+    createdAt: now,
+  }))
+  await db.insert(listNodes).values(entries)
+  console.log(`Lista '${list.id}' creada con ${entries.length} nodos`)
+}
+
 export async function seed() {
   console.log(`Insertando ${seedNodes.length} nodos...`)
   await db.insert(nodes).values(seedNodes)
 
   console.log(`Insertando ${seedRelations.length} relaciones...`)
   await db.insert(relations).values(seedRelations)
+
+  await seedLists()
 
   console.log('Seed completado.')
 }
