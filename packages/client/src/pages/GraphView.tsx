@@ -197,10 +197,10 @@ export default function GraphView() {
         focusTargetRef.current = null
       }
 
-      const repulsion = 2000
-      const attraction = 0.002
-      const damping = 0.92
-      const centerForce = 0.0004
+      const repulsion = 5000
+      const attraction = 0.005
+      const damping = 0.85
+      const centerForce = 0.001
 
       for (const node of nodes) {
         node.vx += (W / 2 - node.x) * centerForce

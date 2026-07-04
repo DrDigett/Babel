@@ -3,6 +3,7 @@ import { NavLink, useLocation, useSearchParams } from 'react-router-dom'
 const links = [
   { to: '/dashboard', label: 'Inicio', icon: '01' },
   { to: '/graph', label: 'Grafo', icon: '02' },
+  { to: '/data', label: 'Import/Export', icon: '03' },
 ]
 
 export default function Sidebar() {
