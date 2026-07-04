@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
-import { RELATION_TYPE_WEIGHTS } from '@babel-plus/shared'
+import { RELATION_TYPE_WEIGHTS, MIN_RELATION_WEIGHT } from '@babel-plus/shared'
 import type { Node, Relation } from '@babel-plus/shared'
 
 const COLORS: Record<string, string> = {
@@ -127,7 +127,7 @@ export default function GraphView() {
       })
 
       const edges: GraphEdge[] = relationData
-        .filter((r: Relation) => visibleIds.has(r.sourceId) && visibleIds.has(r.targetId))
+        .filter((r: Relation) => visibleIds.has(r.sourceId) && visibleIds.has(r.targetId) && (r.weight ?? 1) >= MIN_RELATION_WEIGHT)
         .map((r: Relation) => ({
           sourceId: r.sourceId,
           targetId: r.targetId,
@@ -197,10 +197,10 @@ export default function GraphView() {
         focusTargetRef.current = null
       }
 
-      const repulsion = 5000
-      const attraction = 0.005
-      const damping = 0.85
-      const centerForce = 0.001
+      const repulsion = 2000
+      const attraction = 0.002
+      const damping = 0.92
+      const centerForce = 0.0004
 
       for (const node of nodes) {
         node.vx += (W / 2 - node.x) * centerForce
@@ -551,7 +551,7 @@ export default function GraphView() {
 
         <div style={{
           width: '100%',
-          height: 520,
+          height: 346,
           border: '1px solid #2A2A2A',
           position: 'relative',
         }}>
@@ -609,13 +609,7 @@ function draw(ctx: CanvasRenderingContext2D, W: number, H: number, nodes: GraphN
     ctx.lineWidth = 1 + edge.weight * 2
     ctx.stroke()
 
-    const midX = (source.x + target.x) / 2
-    const midY = (source.y + target.y) / 2
-    ctx.fillStyle = 'rgba(84,110,122,0.7)'
-    ctx.font = '10px "JetBrains Mono", monospace'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'bottom'
-    ctx.fillText(`${edge.label} [${edge.typeWeight}]`, midX, midY - 4)
+
   }
 
   ctx.save()

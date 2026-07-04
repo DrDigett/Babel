@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
-import { RELATION_TYPE_WEIGHTS } from '@babel-plus/shared'
+import { RELATION_TYPE_WEIGHTS, MIN_RELATION_WEIGHT } from '@babel-plus/shared'
 import type { Node, Relation, RelationType } from '@babel-plus/shared'
 
 const EDGE_LABELS: Record<string, string> = {
@@ -71,14 +71,15 @@ export default function NodeDetail() {
       api.relations.list(`targetId=${id}`),
     ])
 
-    const filteredOut = listIdSet ? outgoing.filter((r: Relation) => listIdSet!.has(r.targetId)) : outgoing
+    const weightFilter = (r: Relation) => (r.weight ?? 1) >= MIN_RELATION_WEIGHT
+    const filteredOut = (listIdSet ? outgoing.filter((r: Relation) => listIdSet!.has(r.targetId)) : outgoing).filter(weightFilter)
     setRelations(filteredOut)
     const targets = await Promise.all(
       filteredOut.map((r: Relation) => api.nodes.get(r.targetId)),
     )
     setRelatedNodes(targets)
 
-    const filteredIn = listIdSet ? incoming.filter((r: Relation) => listIdSet!.has(r.sourceId)) : incoming
+    const filteredIn = (listIdSet ? incoming.filter((r: Relation) => listIdSet!.has(r.sourceId)) : incoming).filter(weightFilter)
     const sources = await Promise.all(
       filteredIn.map((r: Relation) => api.nodes.get(r.sourceId)),
     )

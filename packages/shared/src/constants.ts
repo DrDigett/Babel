@@ -32,3 +32,5 @@ export const RELATION_TYPE_WEIGHTS: Record<string, number> = {
 }
 
 export const RELATION_THRESHOLD = 4
+
+export const MIN_RELATION_WEIGHT = 0.4
