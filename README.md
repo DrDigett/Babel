@@ -1,4 +1,6 @@
 # Documentación BaBel+
+## 0. ¿BaBel+?
+Babel+ es una herramienta para organizar y conectar información en forma de grafo de conocimiento: cada pieza de información se guarda como un "nodo" que se puede vincular con otros nodos relacionados, permitiendo construir mapas de conocimiento interconectados en lugar de listas planas o carpetas aisladas. Su diferencial es el uso de inteligencia artificial para acelerar ese proceso: cuando el usuario agrega un nuevo nodo, la herramienta analiza el contenido con un modelo de lenguaje (Llama 3.1 vía Groq), sugiere automáticamente su clasificación y detecta posibles relaciones con nodos ya existentes en el sistema, reduciendo el trabajo manual de organizar y etiquetar información. El resultado es un espacio pensado para quienes necesitan estructurar conocimiento complejo —notas de investigación, documentación de proyectos, bases de conocimiento personales— donde las conexiones entre ideas son tan importantes como las ideas mismas.
 
 ## 1. Patrón Arquitectónico Inferido
 
