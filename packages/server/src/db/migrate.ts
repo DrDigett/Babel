@@ -13,7 +13,6 @@ export async function migrate() {
       author TEXT,
       year INTEGER,
       link TEXT,
-      local_file TEXT,
       rating INTEGER,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL

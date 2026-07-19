@@ -18,7 +18,6 @@ export const nodes = pgTable('nodes', {
   author: text('author'),
   year: integer('year'),
   link: text('link'),
-  localFile: text('local_file'),
   rating: integer('rating'),
   order: integer('order').notNull().default(0),
   userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),

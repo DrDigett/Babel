@@ -14,7 +14,6 @@ export interface Node {
   author: string | null
   year: number | null
   link: string | null
-  localFile: string | null
   rating: number | null
   order: number
   createdAt: string
@@ -39,7 +38,6 @@ export interface CreateNodeInput {
   author?: string
   year?: number
   link?: string
-  localFile?: string
   rating?: number
 }
 

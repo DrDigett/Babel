@@ -53,7 +53,6 @@ router.post('/smart-add', requireAuth, async (c) => {
     author: result.node.author ?? null,
     year: result.node.year ?? null,
     link: result.node.link ?? null,
-    localFile: null,
     userId,
     createdAt: now,
     updatedAt: now,

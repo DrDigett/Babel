@@ -1,15 +1,18 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
+import { useAuth } from '../context/AuthContext'
 import type { Node, Relation } from '@babel-plus/shared'
 
 interface ExportData {
-  nodes: Omit<Node, 'id' | 'createdAt' | 'updatedAt'>[]
+  owner: { email: string; username: string }
+  nodes: Omit<Node, 'id' | 'createdAt' | 'updatedAt' | 'order'>[]
   relations: { source: string; target: string; type: Relation['type']; weight: number }[]
   lists: { name: string; description: string | null; nodeTitles: string[] }[]
 }
 
 export default function ImportExport() {
+  const { user } = useAuth()
   const [searchParams] = useSearchParams()
   const listId = searchParams.get('listId')
   const [importing, setImporting] = useState(false)
@@ -59,7 +62,6 @@ export default function ImportExport() {
         author: n.author,
         year: n.year,
         link: n.link,
-        localFile: n.localFile,
         rating: n.rating,
       }))
 
@@ -78,7 +80,7 @@ export default function ImportExport() {
         nodeTitles: l.nodeIds.map(id => idToTitle.get(id) ?? '').filter(Boolean),
       }))
 
-      const data: ExportData = { nodes: exportNodes, relations: exportRelations, lists: exportLists }
+      const data: ExportData = { owner: { email: user!.email, username: user!.username }, nodes: exportNodes, relations: exportRelations, lists: exportLists }
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -103,6 +105,10 @@ export default function ImportExport() {
 
       if (!data.nodes || !data.relations || !data.lists) {
         throw new Error('Formato inválido')
+      }
+
+      if (data.owner) {
+        setLog(l => [...l, `Exportado por: ${data.owner.email} (${data.owner.username})`])
       }
 
       const existingNodes: Node[] = await api.nodes.list()
@@ -181,7 +187,7 @@ export default function ImportExport() {
       <div className="card">
         <div className="card-label">01 // EXPORT</div>
         <h2>Exportar datos</h2>
-        <p className="desc">{listId ? 'Descarga solo los nodos y relaciones de esta lista como JSON.' : 'Descarga todas las listas, nodos y relaciones como JSON.'}</p>
+        <p className="desc">{listId ? 'Descarga solo los nodos y relaciones de esta lista como JSON.' : 'Descarga todas las listas, nodos y relaciones como JSON.'} Asociado a: {user?.email}</p>
         <button className="btn" onClick={handleExport} disabled={exporting} style={{ fontSize: 11 }}>
           {exporting ? 'Exportando...' : 'Descargar JSON'}
         </button>

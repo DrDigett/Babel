@@ -66,7 +66,6 @@ router.post('/', async (c) => {
     author: body.author?.slice(0, 300) ?? null,
     year: body.year ?? null,
     link: body.link?.slice(0, 2000) ?? null,
-    localFile: body.localFile?.slice(0, 500) ?? null,
     order: maxOrder + 1,
     userId,
     createdAt: now,
@@ -105,7 +104,6 @@ router.put('/:id', async (c) => {
   if (body.author !== undefined) update.author = body.author?.slice(0, 300) ?? null
   if (body.year !== undefined) update.year = body.year
   if (body.link !== undefined) update.link = body.link?.slice(0, 2000) ?? null
-  if (body.localFile !== undefined) update.localFile = body.localFile?.slice(0, 500) ?? null
   if (body.rating !== undefined) update.rating = body.rating
 
   await db.update(nodes).set(update).where(eq(nodes.id, id))
