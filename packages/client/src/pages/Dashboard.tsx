@@ -107,8 +107,12 @@ export default function Dashboard() {
 
   const persistOrder = useCallback(async ( reordered: Node[]) => {
     setNodes(reordered)
-    await api.nodes.reorder(reordered.map(n => n.id))
-  }, [])
+    if (listId) {
+      await api.lists.reorder(listId, reordered.map(n => n.id))
+    } else {
+      await api.nodes.reorder(reordered.map(n => n.id))
+    }
+  }, [listId])
 
   const handleDragStart = (e: React.DragEvent, id: string, idx: number) => {
     e.dataTransfer.effectAllowed = 'move'
