@@ -3,26 +3,31 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import SearchBar from '../components/SearchBar'
 import QuickAdd from '../components/QuickAdd'
+import { NODE_TYPES, NODE_STATUSES } from '@babel-plus/shared'
 import type { Node } from '@babel-plus/shared'
 
-type FilterValue = { type: 'type'; value: string } | { type: 'status'; value: string }
-type Filter = FilterValue | null
-
-const filters: { label: string; filter: FilterValue }[] = [
-  { label: 'Pendientes', filter: { type: 'status', value: 'pendiente' } },
-  { label: 'Terminados', filter: { type: 'status', value: 'terminado' } },
-  { label: 'Libros', filter: { type: 'type', value: 'libro' } },
-  { label: 'Películas', filter: { type: 'type', value: 'pelicula' } },
-  { label: 'Artículos', filter: { type: 'type', value: 'articulo' } },
-  { label: 'Videojuegos', filter: { type: 'type', value: 'videojuego' } },
-]
+const TYPE_LABELS: Record<string, string> = {
+  libro: 'Libros', pelicula: 'Películas', articulo: 'Artículos',
+  video: 'Video', curso: 'Cursos', videojuego: 'Videojuegos',
+}
+const STATUS_LABELS: Record<string, string> = {
+  pendiente: 'Pendientes', en_progreso: 'En progreso', terminado: 'Terminados', abandonado: 'Abandonados',
+}
+const TYPE_COLORS: Record<string, string> = {
+  libro: '#4a90d9', pelicula: '#50c878', articulo: '#4a90d9',
+  video: '#9b59b6', curso: '#9b59b6', videojuego: '#e67e22',
+}
+const STATUS_COLORS: Record<string, string> = {
+  pendiente: '#f9a825', en_progreso: '#42a5f5', terminado: '#66bb6a', abandonado: '#757575',
+}
 
 export default function Dashboard() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [nodes, setNodes] = useState<Node[]>([])
   const [results, setResults] = useState<Node[] | null>(null)
-  const [activeFilter, setActiveFilter] = useState<Filter>(null)
+  const [activeType, setActiveType] = useState<string | null>(null)
+  const [activeStatus, setActiveStatus] = useState<string | null>(null)
   const [newListId, setNewListId] = useState<string | null>(searchParams.get('newListId'))
   const inputRef = useRef<HTMLInputElement>(null)
   const dragRef = useRef<{ id: string; startY: number; startIdx: number; currentIdx: number } | null>(null)
@@ -53,16 +58,19 @@ export default function Dashboard() {
     setResults(res)
   }
 
-  const counts = (type: string) => nodes.filter((n) => n.type === type).length
-  const statusCount = (status: string) => nodes.filter((n) => n.status === status).length
+  const getTypeCount = (type: string) => {
+    if (activeStatus) return nodes.filter((n) => n.type === type && n.status === activeStatus).length
+    return nodes.filter((n) => n.type === type).length
+  }
+  const getStatusCount = (status: string) => {
+    if (activeType) return nodes.filter((n) => n.status === status && n.type === activeType).length
+    return nodes.filter((n) => n.status === status).length
+  }
 
   let displayNodes = results ?? nodes
-  if (activeFilter && !results) {
-    displayNodes = displayNodes.filter((n) =>
-      activeFilter.type === 'type'
-        ? n.type === activeFilter.value
-        : n.status === activeFilter.value,
-    )
+  if (!results) {
+    if (activeType) displayNodes = displayNodes.filter((n) => n.type === activeType)
+    if (activeStatus) displayNodes = displayNodes.filter((n) => n.status === activeStatus)
   }
 
   const getStatusBadge = (node: Node) => {
@@ -103,7 +111,7 @@ export default function Dashboard() {
     }
   }
 
-  const canReorder = !activeFilter && !results
+  const canReorder = !activeType && !activeStatus && !results
 
   const persistOrder = useCallback(async ( reordered: Node[]) => {
     setNodes(reordered)
@@ -345,34 +353,66 @@ export default function Dashboard() {
         <div className="card-label">02 // FILTER</div>
         <h2>Filtros de Consulta</h2>
         <p className="desc">
-          Segmentar por tipo o estado.
+          Segmentar por tipo o estado. Combiná ambos para refinar.
         </p>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {filters.map(({ label, filter }) => {
-            const count =
-              filter.type === 'status' ? statusCount(filter.value) : counts(filter.value)
-            const isActive =
-              activeFilter?.type === filter.type && activeFilter?.value === filter.value
-            return (
-              <button
-                key={label}
-                onClick={() => setActiveFilter(isActive ? null : filter)}
-                className={`btn ${isActive ? 'btn-active' : ''}`}
-                style={{ fontSize: 10 }}
-              >
-                {label}
-                <span style={{ marginLeft: 6, color: '#546E7A', fontWeight: 700 }}>{count}</span>
-              </button>
-            )
-          })}
-          {activeFilter && (
-            <button
-              onClick={() => setActiveFilter(null)}
-              className="btn"
-              style={{ fontSize: 10, color: '#b71c1c' }}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* Row: Types — dropdown */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span style={{ fontSize: 9, color: '#757575', letterSpacing: 2, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>Tipo</span>
+            <select
+              value={activeType ?? ''}
+              onChange={(e) => setActiveType(e.target.value || null)}
+              className={`btn ${activeType ? 'btn-active' : ''}`}
+              style={{ fontSize: 10 }}
             >
-              ✕ Limpiar filtro
-            </button>
+              <option value="">Todos</option>
+              {NODE_TYPES.map((type) => (
+                <option key={type} value={type}>{TYPE_LABELS[type]}</option>
+              ))}
+            </select>
+            {activeType && (
+              <span style={{ fontSize: 10, color: '#546E7A', fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
+                {getTypeCount(activeType)} res.
+              </span>
+            )}
+          </div>
+
+          {/* Row: Statuses */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: 9, color: '#757575', letterSpacing: 2, textTransform: 'uppercase', marginRight: 4, fontFamily: "'JetBrains Mono', monospace" }}>Estado</span>
+            {NODE_STATUSES.filter(s => s !== 'abandonado' && s !== 'en_progreso').map((status) => {
+              const count = getStatusCount(status)
+              const isActive = activeStatus === status
+              return (
+                <button
+                  key={status}
+                  onClick={() => setActiveStatus(isActive ? null : status)}
+                  className={`btn ${isActive ? 'btn-active' : ''}`}
+                  style={{
+                    fontSize: 10,
+                    borderColor: isActive ? STATUS_COLORS[status] : undefined,
+                    color: isActive ? STATUS_COLORS[status] : undefined,
+                    background: isActive ? `${STATUS_COLORS[status]}18` : undefined,
+                  }}
+                >
+                  {STATUS_LABELS[status]}
+                  <span style={{ marginLeft: 5, color: '#546E7A', fontWeight: 700 }}>{count}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Clear button */}
+          {(activeType || activeStatus) && (
+            <div>
+              <button
+                onClick={() => { setActiveType(null); setActiveStatus(null) }}
+                className="btn"
+                style={{ fontSize: 10, color: '#b71c1c' }}
+              >
+                ✕ Limpiar filtros
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -428,8 +468,8 @@ export default function Dashboard() {
             }}>
               {results !== null
                 ? 'Sin resultados'
-                : activeFilter
-                  ? 'No hay resultados para este filtro'
+                : (activeType || activeStatus)
+                  ? 'No hay resultados para estos filtros'
                   : 'No hay elementos aún'}
             </div>
           )}
