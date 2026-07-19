@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate, type ReactNode } from 'react-ro
 import { AuthProvider, useAuth } from './context/AuthContext'
 import LoginPage from './pages/LoginPage'
 import Layout from './components/Layout'
-import HomePage from './pages/HomePage'
 import Dashboard from './pages/Dashboard'
 import NodeDetail from './pages/NodeDetail'
 import GraphView from './pages/GraphView'
@@ -21,7 +20,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<ProtectedRoute><Layout><HomePage /></Layout></ProtectedRoute>} />
+          <Route path="/" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
           <Route path="/graph" element={<ProtectedRoute><Layout><GraphView /></Layout></ProtectedRoute>} />
           <Route path="/node/:id" element={<ProtectedRoute><Layout><NodeDetail /></Layout></ProtectedRoute>} />

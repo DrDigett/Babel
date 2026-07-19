@@ -1,3 +1,4 @@
+// ponytail: reservado — selector de listas, reactivar si se necesita
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
