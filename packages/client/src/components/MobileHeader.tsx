@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { NavLink, useLocation, useSearchParams } from 'react-router-dom'
 
 const links = [
@@ -7,20 +8,19 @@ const links = [
 ]
 
 export default function MobileHeader() {
+  const [open, setOpen] = useState(false)
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const listId = searchParams.get('listId')
 
+  useEffect(() => {
+    setOpen(false)
+  }, [location.pathname])
+
   return (
     <header className="mobile-header">
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '12px 16px',
-        borderBottom: '1px solid #2A2A2A',
-      }}>
-        <div>
+      <div className="mobile-header-bar">
+        <div className="mobile-header-brand">
           <div style={{
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: 9,
@@ -41,7 +41,18 @@ export default function MobileHeader() {
             BaBel+
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 4 }}>
+        <button
+          className={`burger-btn${open ? ' open' : ''}`}
+          onClick={() => setOpen(!open)}
+          aria-label="Menu"
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+      </div>
+      {open && (
+        <nav className="mobile-nav-panel">
           {links.map((link) => {
             const isActive = location.pathname === link.to ||
               location.pathname.startsWith(link.to)
@@ -50,34 +61,15 @@ export default function MobileHeader() {
               <NavLink
                 key={link.to}
                 to={to}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '8px 10px',
-                  textDecoration: 'none',
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontSize: 11,
-                  color: isActive ? '#CFD8DC' : '#555',
-                  background: isActive ? 'rgba(84, 110, 122, 0.1)' : 'transparent',
-                  border: isActive ? '1px solid #333' : '1px solid transparent',
-                  letterSpacing: 0.5,
-                  transition: 'all 0.1s',
-                }}
+                className={`mobile-nav-link${isActive ? ' active' : ''}`}
               >
-                <span style={{
-                  color: isActive ? '#546E7A' : '#333',
-                  fontSize: 9,
-                  fontWeight: 700,
-                }}>
-                  {link.icon}
-                </span>
+                <span className="mobile-nav-icon">{link.icon}</span>
                 {link.label}
               </NavLink>
             )
           })}
-        </div>
-      </div>
+        </nav>
+      )}
     </header>
   )
 }

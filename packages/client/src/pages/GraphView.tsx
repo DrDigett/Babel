@@ -265,7 +265,7 @@ export default function GraphView() {
 
     simFrame = requestAnimationFrame(simulate)
 
-    function getMousePos(e: MouseEvent) {
+    function getMousePos(e: { clientX: number; clientY: number }) {
       const rect = cv.getBoundingClientRect()
       return { sx: e.clientX - rect.left, sy: e.clientY - rect.top }
     }
@@ -282,10 +282,11 @@ export default function GraphView() {
       cam.y = pos.sy - world.y * cam.scale
     }
 
-    const handleMouseDown = (e: MouseEvent) => {
+    const handlePointerDown = (e: PointerEvent) => {
       const pos = getMousePos(e)
       const world = screenToWorld(pos.sx, pos.sy, camRef.current)
       const hit = hitTest(world.x, world.y, nodes)
+      cv.setPointerCapture(e.pointerId)
 
       if (hit) {
         dragRef.current = {
@@ -311,7 +312,7 @@ export default function GraphView() {
       }
     }
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const handlePointerMove = (e: PointerEvent) => {
       const pos = getMousePos(e)
       const drag = dragRef.current
 
@@ -337,7 +338,7 @@ export default function GraphView() {
       cv.style.cursor = hit ? 'pointer' : 'default'
     }
 
-    const handleMouseUp = (e: MouseEvent) => {
+    const handlePointerUp = (e: PointerEvent) => {
       const drag = dragRef.current
       if (drag.type === 'node' && drag.node) {
         const pos = getMousePos(e)
@@ -351,25 +352,25 @@ export default function GraphView() {
       cv.style.cursor = 'default'
     }
 
-    const handleMouseLeave = () => {
+    const handlePointerLeave = () => {
       dragRef.current = { type: null, node: null, ox: 0, oy: 0, startX: 0, startY: 0, camStart: { x: 0, y: 0, scale: 1 } }
       setHoveredNode(null)
     }
 
     cv.addEventListener('wheel', handleWheel, { passive: false })
-    cv.addEventListener('mousedown', handleMouseDown)
-    cv.addEventListener('mousemove', handleMouseMove)
-    cv.addEventListener('mouseup', handleMouseUp)
-    cv.addEventListener('mouseleave', handleMouseLeave)
+    cv.addEventListener('pointerdown', handlePointerDown)
+    cv.addEventListener('pointermove', handlePointerMove)
+    cv.addEventListener('pointerup', handlePointerUp)
+    cv.addEventListener('pointerleave', handlePointerLeave)
 
     return () => {
       running = false
       cancelAnimationFrame(simFrame)
       cv.removeEventListener('wheel', handleWheel)
-      cv.removeEventListener('mousedown', handleMouseDown)
-      cv.removeEventListener('mousemove', handleMouseMove)
-      cv.removeEventListener('mouseup', handleMouseUp)
-      cv.removeEventListener('mouseleave', handleMouseLeave)
+      cv.removeEventListener('pointerdown', handlePointerDown)
+      cv.removeEventListener('pointermove', handlePointerMove)
+      cv.removeEventListener('pointerup', handlePointerUp)
+      cv.removeEventListener('pointerleave', handlePointerLeave)
       window.removeEventListener('resize', resize)
     }
   }, [loading, error, navigate])
@@ -557,7 +558,7 @@ export default function GraphView() {
         }}>
           <canvas
             ref={canvasRef}
-            style={{ width: '100%', height: '100%', display: 'block' }}
+            style={{ width: '100%', height: '100%', display: 'block', touchAction: 'none' }}
           />
         </div>
 
