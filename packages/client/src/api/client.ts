@@ -23,6 +23,7 @@ export const api = {
     create: (data: any) => request<any>('/nodes', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) => request<any>(`/nodes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => request<any>(`/nodes/${id}`, { method: 'DELETE' }),
+    reorder: (nodeIds: string[]) => request<any>('/nodes/reorder', { method: 'PUT', body: JSON.stringify({ nodeIds }) }),
   },
   relations: {
     list: (params?: string) => request<any[]>(`/relations${params ? `?${params}` : ''}`),

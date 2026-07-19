@@ -37,7 +37,10 @@ export default function NodeDetail() {
   const [relType, setRelType] = useState<RelationType>('similar_a')
   const [adding, setAdding] = useState(false)
   const [rating, setRating] = useState<number | null>(null)
+  const [allNodes, setAllNodes] = useState<Node[]>([])
+  const [showPosDropdown, setShowPosDropdown] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
+  const posDropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!node || listId) return
@@ -49,6 +52,17 @@ export default function NodeDetail() {
     loadNode()
   }, [id, listId])
 
+  useEffect(() => {
+    if (!showPosDropdown) return
+    const handler = (e: MouseEvent) => {
+      if (posDropdownRef.current && !posDropdownRef.current.contains(e.target as Node)) {
+        setShowPosDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showPosDropdown])
+
   async function loadNode() {
     if (!id) return
     const n = await api.nodes.get(id)
@@ -59,11 +73,14 @@ export default function NodeDetail() {
       try {
         const list = await api.lists.get(listId)
         listIdSet = new Set((list.nodes ?? []).map((x: any) => x.id))
+        setAllNodes(list.nodes ?? [])
         const current = (list.nodes ?? []).find((x: any) => x.id === id)
         if (current?.listRating !== undefined && current?.listRating !== null) {
           setRating(current.listRating)
         }
       } catch { listIdSet = null }
+    } else {
+      setAllNodes(await api.nodes.list())
     }
 
     const [outgoing, incoming] = await Promise.all([
@@ -93,6 +110,27 @@ export default function NodeDetail() {
     const newStatus = node.status === 'pendiente' ? 'terminado' : 'pendiente'
     await api.nodes.update(id, { status: newStatus })
     setNode({ ...node, status: newStatus })
+  }
+
+  function getCurrentPosition(): number {
+    if (!node || allNodes.length === 0) return 0
+    return allNodes.findIndex(n => n.id === node.id) + 1
+  }
+
+  async function moveToPosition(targetPos: number) {
+    if (!node || allNodes.length === 0) return
+    const currentPos = getCurrentPosition()
+    if (currentPos === targetPos) return
+    const reordered = [...allNodes]
+    const [moved] = reordered.splice(currentPos - 1, 1)
+    reordered.splice(targetPos - 1, 0, moved)
+    setAllNodes(reordered)
+    if (listId) {
+      await api.lists.reorder(listId, reordered.map(n => n.id))
+    } else {
+      await api.nodes.reorder(reordered.map(n => n.id))
+    }
+    setShowPosDropdown(false)
   }
 
   async function handleSearch(q: string) {
@@ -187,7 +225,7 @@ export default function NodeDetail() {
             <h2 style={{ fontSize: 22, fontWeight: 600, margin: 0, marginBottom: 4 }}>
               {node.title}
             </h2>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
               <span className="badge" style={{ borderColor: typeColors[node.type] ?? '#546E7A', color: typeColors[node.type] ?? '#546E7A' }}>
                 {node.type}
               </span>
@@ -199,9 +237,52 @@ export default function NodeDetail() {
               >
                 {node.status}
               </span>
-              <span className={`badge ${node.priority === 'alta' ? 'badge-alta' : node.priority === 'media' ? 'badge-media' : 'badge-baja'}`}>
-                {node.priority}
-              </span>
+              {allNodes.length > 0 && (
+                <div ref={posDropdownRef} style={{ position: 'relative' }}>
+                  <span
+                    className="badge"
+                    onClick={() => setShowPosDropdown(!showPosDropdown)}
+                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}
+                  >
+                    #{getCurrentPosition()}
+                    <span style={{ fontSize: 8, lineHeight: 1 }}>▼</span>
+                  </span>
+                  {showPosDropdown && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      marginTop: 2,
+                      background: '#111',
+                      border: '1px solid #333',
+                      maxHeight: 200,
+                      overflowY: 'auto',
+                      zIndex: 50,
+                      minWidth: 50,
+                    }}>
+                      {allNodes.map((_, i) => (
+                        <div
+                          key={i}
+                          onClick={() => moveToPosition(i + 1)}
+                          style={{
+                            padding: '4px 10px',
+                            cursor: 'pointer',
+                            fontFamily: "'JetBrains Mono', monospace",
+                            fontSize: 11,
+                            color: (i + 1) === getCurrentPosition() ? '#CFD8DC' : '#757575',
+                            background: (i + 1) === getCurrentPosition() ? 'rgba(84,110,122,0.15)' : 'transparent',
+                            borderBottom: '1px solid #222',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = '#222' }}
+                          onMouseLeave={e => { e.currentTarget.style.background = (i + 1) === getCurrentPosition() ? 'rgba(84,110,122,0.15)' : 'transparent' }}
+                        >
+                          {String(i + 1).padStart(2, '0')}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

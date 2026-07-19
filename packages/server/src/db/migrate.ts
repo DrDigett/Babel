@@ -9,7 +9,6 @@ export async function migrate() {
       type TEXT NOT NULL,
       description TEXT,
       status TEXT NOT NULL DEFAULT 'pendiente',
-      priority TEXT NOT NULL DEFAULT 'media',
       tags TEXT,
       author TEXT,
       year INTEGER,

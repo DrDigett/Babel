@@ -12,7 +12,7 @@ const seedNodes = [
     type: 'libro',
     description: 'Obra crítica sobre la filosofía alemana post-hegeliana donde Marx y Engels desarrollan la concepción materialista de la historia.',
     status: 'terminado',
-    priority: 'alta',
+
     tags: JSON.stringify(['filosofia', 'marxismo', 'materialismo-historico', 'alemania']),
     author: 'Karl Marx, Friedrich Engels',
     year: 1932,
@@ -27,7 +27,7 @@ const seedNodes = [
     type: 'libro',
     description: 'Última obra de Mijaíl Bakunin, crítica del estatismo y defensa del anarquismo colectivista.',
     status: 'pendiente',
-    priority: 'alta',
+
     tags: JSON.stringify(['filosofia', 'anarquismo', 'estado', 'revolucion']),
     author: 'Mijaíl Bakunin',
     year: 1873,
@@ -42,7 +42,7 @@ const seedNodes = [
     type: 'libro',
     description: 'Obra fundamental de Hegel que describe el desarrollo de la conciencia desde la percepción sensible hasta el saber absoluto.',
     status: 'pendiente',
-    priority: 'alta',
+
     tags: JSON.stringify(['filosofia', 'idealismo-aleman', 'dialectica', 'epistemologia']),
     author: 'G. W. F. Hegel',
     year: 1807,
@@ -57,7 +57,7 @@ const seedNodes = [
     type: 'libro',
     description: 'Análisis crítico de la sociedad contemporánea donde Guy Debord describe el espectáculo como la relación social mediada por imágenes.',
     status: 'en_progreso',
-    priority: 'media',
+
     tags: JSON.stringify(['filosofia', 'marxismo', 'sociedad', 'capitalismo', 'medios']),
     author: 'Guy Debord',
     year: 1967,
@@ -72,7 +72,7 @@ const seedNodes = [
     type: 'pelicula',
     description: 'Película épica sobre la guerra de independencia argelina contra el colonialismo francés.',
     status: 'pendiente',
-    priority: 'media',
+
     tags: JSON.stringify(['colonialismo', 'revolucion', 'argelia', 'guerra']),
     author: null,
     year: 1966,
@@ -87,7 +87,7 @@ const seedNodes = [
     type: 'libro',
     description: 'Obra de Frantz Fanon sobre la descolonización y la psicología del colonizado.',
     status: 'pendiente',
-    priority: 'alta',
+
     tags: JSON.stringify(['colonialismo', 'revolucion', 'psicologia', 'argelia']),
     author: 'Frantz Fanon',
     year: 1961,
@@ -102,7 +102,7 @@ const seedNodes = [
     type: 'concepto',
     description: 'Sistema de dominación política y económica de un territorio por una potencia extranjera.',
     status: 'terminado',
-    priority: 'media',
+
     tags: JSON.stringify(['historia', 'politica', 'imperialismo']),
     author: null,
     year: null,
@@ -117,7 +117,7 @@ const seedNodes = [
     type: 'concepto',
     description: 'Cambio profundo y rápido en las estructuras políticas, sociales o económicas de una sociedad.',
     status: 'terminado',
-    priority: 'media',
+
     tags: JSON.stringify(['historia', 'politica', 'cambio-social']),
     author: null,
     year: null,
@@ -132,7 +132,7 @@ const seedNodes = [
     type: 'concepto',
     description: 'Conjunto de instituciones que ejercen el poder político y administrativo sobre una sociedad.',
     status: 'terminado',
-    priority: 'media',
+
     tags: JSON.stringify(['politica', 'filosofia', 'poder']),
     author: null,
     year: null,
@@ -147,7 +147,7 @@ const seedNodes = [
     type: 'autor',
     description: 'Filósofo, economista y revolucionario alemán, fundador del marxismo.',
     status: 'terminado',
-    priority: 'alta',
+
     tags: JSON.stringify(['filosofia', 'marxismo', 'economia', 'alemania']),
     author: null,
     year: null,
@@ -162,7 +162,7 @@ const seedNodes = [
     type: 'concepto',
     description: 'Concepción materialista de la historia que sostiene que las condiciones económicas determinan la superestructura social y política.',
     status: 'terminado',
-    priority: 'alta',
+
     tags: JSON.stringify(['filosofia', 'marxismo', 'historia', 'economia']),
     author: null,
     year: null,
@@ -177,7 +177,7 @@ const seedNodes = [
     type: 'filosofo',
     description: 'Filósofo alemán del idealismo, figura clave de la filosofía occidental.',
     status: 'terminado',
-    priority: 'alta',
+
     tags: JSON.stringify(['filosofia', 'idealismo-aleman', 'dialectica']),
     author: null,
     year: null,
@@ -192,7 +192,7 @@ const seedNodes = [
     type: 'autor',
     description: 'Revolucionario y filósofo ruso, fundador del anarquismo colectivista.',
     status: 'terminado',
-    priority: 'alta',
+
     tags: JSON.stringify(['filosofia', 'anarquismo', 'rusia', 'revolucion']),
     author: null,
     year: null,
@@ -207,7 +207,7 @@ const seedNodes = [
     type: 'autor',
     description: 'Filósofo, escritor y cineasta francés, miembro central de la Internacional Situacionista.',
     status: 'terminado',
-    priority: 'media',
+
     tags: JSON.stringify(['filosofia', 'situacionismo', 'france']),
     author: null,
     year: null,
@@ -222,7 +222,7 @@ const seedNodes = [
     type: 'director',
     description: 'Cineasta italiano, conocido por su cine político.',
     status: 'terminado',
-    priority: 'media',
+
     tags: JSON.stringify(['cine', 'italia', 'politica']),
     author: null,
     year: null,
@@ -237,7 +237,7 @@ const seedNodes = [
     type: 'autor',
     description: 'Psiquiatra, filósofo y revolucionario martiniqués, teórico de la descolonización.',
     status: 'terminado',
-    priority: 'alta',
+
     tags: JSON.stringify(['colonialismo', 'psicologia', 'descolonizacion']),
     author: null,
     year: null,
@@ -252,7 +252,7 @@ const seedNodes = [
     type: 'escuela',
     description: 'Corriente filosófica, política y económica fundada por Karl Marx y Friedrich Engels.',
     status: 'terminado',
-    priority: 'alta',
+
     tags: JSON.stringify(['filosofia', 'economia', 'politica', 'historia']),
     author: null,
     year: null,
@@ -267,7 +267,7 @@ const seedNodes = [
     type: 'escuela',
     description: 'Corriente política que rechaza el Estado y toda forma de autoridad coercitiva.',
     status: 'terminado',
-    priority: 'alta',
+
     tags: JSON.stringify(['filosofia', 'politica', 'libertad']),
     author: null,
     year: null,
@@ -282,7 +282,7 @@ const seedNodes = [
     type: 'escuela',
     description: 'Corriente filosófica alemana del siglo XIX que sostiene que la realidad es fundamentalmente espiritual o mental.',
     status: 'terminado',
-    priority: 'alta',
+
     tags: JSON.stringify(['filosofia', 'alemania', 'idealismo']),
     author: null,
     year: null,
@@ -297,7 +297,7 @@ const seedNodes = [
     type: 'evento',
     description: 'Conflicto armado entre Francia y el Frente de Liberación Nacional argelino (1954-1962).',
     status: 'terminado',
-    priority: 'alta',
+
     tags: JSON.stringify(['historia', 'argelia', 'colonialismo', 'independencia']),
     author: null,
     year: 1954,
@@ -499,7 +499,7 @@ async function seedLists() {
 
 export async function seed() {
   console.log(`Insertando ${seedNodes.length} nodos...`)
-  await db.insert(nodes).values(seedNodes)
+  await db.insert(nodes).values(seedNodes.map((n, i) => ({ ...n, order: i })))
 
   console.log(`Insertando ${seedRelations.length} relaciones...`)
   await db.insert(relations).values(seedRelations)

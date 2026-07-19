@@ -14,7 +14,6 @@ interface ClassifiedNode {
   type: NodeType
   description: string | null
   status: 'pendiente'
-  priority: 'media'
   tags: string[]
   author: string | null
   year: number | null
@@ -70,7 +69,6 @@ Debes devolver UNICAMENTE un objeto JSON sin texto adicional, usando esta estruc
     "type": "tipo del contenido",
     "description": "resumen corto o null",
     "status": "pendiente",
-    "priority": "media",
     "tags": ["etiqueta1", "etiqueta2"],
     "author": "autor o null",
     "year": 2024 o null,

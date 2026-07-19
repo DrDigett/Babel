@@ -275,22 +275,6 @@ input:focus, select:focus, textarea:focus {
   background: rgba(102, 187, 106, 0.1);
 }
 
-.badge-alta {
-  border-color: #ef5350;
-  color: #ef5350;
-  background: rgba(239, 83, 80, 0.1);
-}
-
-.badge-media {
-  border-color: var(--accent-muted);
-  color: var(--accent-muted);
-}
-
-.badge-baja {
-  border-color: var(--text-muted);
-  color: var(--text-muted);
-}
-
 /* Weight badge */
 .weight-badge {
   display: inline-block;

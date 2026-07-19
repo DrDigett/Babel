@@ -5,8 +5,6 @@ export const NODE_TYPES = [
 
 export const NODE_STATUSES = ['pendiente', 'en_progreso', 'terminado', 'abandonado'] as const
 
-export const NODE_PRIORITIES = ['alta', 'media', 'baja'] as const
-
 export const RELATION_TYPES = [
   'es_autor_de',
   'dirigio',

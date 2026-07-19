@@ -2,12 +2,11 @@ import crypto from 'node:crypto'
 import { db } from '../db'
 import { nodes } from '../db/schema'
 import { Hono } from 'hono'
-import { eq, and } from 'drizzle-orm'
-import type { CreateNodeInput, NodeType, NodeStatus, NodePriority } from '@babel-plus/shared'
+import { eq, and, asc, sql } from 'drizzle-orm'
+import type { CreateNodeInput, NodeType, NodeStatus } from '@babel-plus/shared'
 
 const NODE_TYPES: NodeType[] = ['libro', 'pelicula', 'articulo', 'video', 'curso', 'videojuego']
 const NODE_STATUSES: NodeStatus[] = ['pendiente', 'en_progreso', 'terminado', 'abandonado']
-const NODE_PRIORITIES: NodePriority[] = ['alta', 'media', 'baja']
 
 const router = new Hono()
 
@@ -20,8 +19,8 @@ router.get('/', async (c) => {
   if (status) conditions.push(eq(nodes.status, status))
 
   const all = conditions.length
-    ? await db.select().from(nodes).where(and(...conditions))
-    : await db.select().from(nodes)
+    ? await db.select().from(nodes).where(and(...conditions)).orderBy(asc(nodes.order))
+    : await db.select().from(nodes).orderBy(asc(nodes.order))
 
   return c.json(all)
 })
@@ -47,31 +46,37 @@ router.post('/', async (c) => {
   if (body.status && !NODE_STATUSES.includes(body.status)) {
     return c.json({ error: `invalid status, must be one of: ${NODE_STATUSES.join(', ')}` }, 400)
   }
-  if (body.priority && !NODE_PRIORITIES.includes(body.priority)) {
-    return c.json({ error: `invalid priority, must be one of: ${NODE_PRIORITIES.join(', ')}` }, 400)
-  }
   if (body.year && (typeof body.year !== 'number' || body.year < -5000 || body.year > 3000)) {
     return c.json({ error: 'invalid year' }, 400)
   }
 
   const now = new Date().toISOString()
+  const [{ maxOrder }] = await db.select({ maxOrder: sql<number>`coalesce(max(${nodes.order}), 0)` }).from(nodes)
   const node = {
     id: crypto.randomUUID(),
     title: body.title.trim(),
     type: body.type,
     description: body.description?.slice(0, 5000) ?? null,
     status: body.status ?? 'pendiente',
-    priority: body.priority ?? 'media',
     tags: body.tags ? JSON.stringify(body.tags.slice(0, 50)) : null,
     author: body.author?.slice(0, 300) ?? null,
     year: body.year ?? null,
     link: body.link?.slice(0, 2000) ?? null,
     localFile: body.localFile?.slice(0, 500) ?? null,
+    order: maxOrder + 1,
     createdAt: now,
     updatedAt: now,
   }
   await db.insert(nodes).values(node)
   return c.json(node, 201)
+})
+
+router.put('/reorder', async (c) => {
+  const { nodeIds } = await c.req.json<{ nodeIds: string[] }>()
+  for (let i = 0; i < nodeIds.length; i++) {
+    await db.update(nodes).set({ order: i }).where(eq(nodes.id, nodeIds[i]))
+  }
+  return c.json({ success: true })
 })
 
 router.put('/:id', async (c) => {
@@ -89,7 +94,6 @@ router.put('/:id', async (c) => {
   if (body.type !== undefined) update.type = body.type
   if (body.description !== undefined) update.description = body.description?.slice(0, 5000) ?? null
   if (body.status !== undefined) update.status = body.status
-  if (body.priority !== undefined) update.priority = body.priority
   if (body.tags !== undefined) update.tags = JSON.stringify(body.tags.slice(0, 50))
   if (body.author !== undefined) update.author = body.author?.slice(0, 300) ?? null
   if (body.year !== undefined) update.year = body.year
@@ -104,7 +108,14 @@ router.put('/:id', async (c) => {
 
 router.delete('/:id', async (c) => {
   const id = c.req.param('id')
+  const [deleted] = await db.select({ order: nodes.order }).from(nodes).where(eq(nodes.id, id)).limit(1)
   await db.delete(nodes).where(eq(nodes.id, id))
+  if (deleted) {
+    const remaining = await db.select({ id: nodes.id }).from(nodes).where(sql`${nodes.order} > ${deleted.order}`).orderBy(asc(nodes.order))
+    for (let i = 0; i < remaining.length; i++) {
+      await db.update(nodes).set({ order: deleted.order + i }).where(eq(nodes.id, remaining[i].id))
+    }
+  }
   return c.json({ success: true })
 })
 

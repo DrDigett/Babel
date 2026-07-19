@@ -1,8 +1,7 @@
-import type { NODE_TYPES, NODE_STATUSES, NODE_PRIORITIES, RELATION_TYPES } from './constants'
+import type { NODE_TYPES, NODE_STATUSES, RELATION_TYPES } from './constants'
 
 export type NodeType = typeof NODE_TYPES[number]
 export type NodeStatus = typeof NODE_STATUSES[number]
-export type NodePriority = typeof NODE_PRIORITIES[number]
 export type RelationType = typeof RELATION_TYPES[number]
 
 export interface Node {
@@ -11,13 +10,13 @@ export interface Node {
   type: NodeType
   description: string | null
   status: NodeStatus
-  priority: NodePriority
   tags: string | null
   author: string | null
   year: number | null
   link: string | null
   localFile: string | null
   rating: number | null
+  order: number
   createdAt: string
   updatedAt: string
 }
@@ -36,7 +35,6 @@ export interface CreateNodeInput {
   type: NodeType
   description?: string
   status?: NodeStatus
-  priority?: NodePriority
   tags?: string[]
   author?: string
   year?: number

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import SearchBar from '../components/SearchBar'
@@ -25,6 +25,8 @@ export default function Dashboard() {
   const [activeFilter, setActiveFilter] = useState<Filter>(null)
   const [newListId, setNewListId] = useState<string | null>(searchParams.get('newListId'))
   const inputRef = useRef<HTMLInputElement>(null)
+  const dragRef = useRef<{ id: string; startY: number; startIdx: number; currentIdx: number } | null>(null)
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
 
   const listId = searchParams.get('listId')
 
@@ -99,6 +101,72 @@ export default function Dashboard() {
         if (inputRef.current) inputRef.current.value = '¡COPIADO!'
       }
     }
+  }
+
+  const canReorder = !activeFilter && !results
+
+  const persistOrder = useCallback(async ( reordered: Node[]) => {
+    setNodes(reordered)
+    await api.nodes.reorder(reordered.map(n => n.id))
+  }, [])
+
+  const handleDragStart = (e: React.DragEvent, id: string, idx: number) => {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', id)
+    dragRef.current = { id, startY: 0, startIdx: idx, currentIdx: idx }
+  }
+
+  const handleDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverIdx(idx)
+  }
+
+  const handleDrop = (e: React.DragEvent, dropIdx: number) => {
+    e.preventDefault()
+    setDragOverIdx(null)
+    const drag = dragRef.current
+    if (!drag || drag.startIdx === dropIdx) return
+    const reordered = [...nodes]
+    const [moved] = reordered.splice(drag.startIdx, 1)
+    reordered.splice(dropIdx, 0, moved)
+    persistOrder(reordered)
+    dragRef.current = null
+  }
+
+  const handleDragEnd = () => {
+    setDragOverIdx(null)
+    dragRef.current = null
+  }
+
+  const handleTouchStart = (e: React.TouchEvent, id: string, idx: number) => {
+    const touch = e.touches[0]
+    dragRef.current = { id, startY: touch.clientY, startIdx: idx, currentIdx: idx }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent, idx: number) => {
+    if (!dragRef.current) return
+    const touch = e.touches[0]
+    const rowHeight = 36
+    const diff = Math.round((touch.clientY - dragRef.current.startY) / rowHeight)
+    const newIdx = Math.max(0, Math.min(nodes.length - 1, dragRef.current.startIdx + diff))
+    if (newIdx !== dragRef.current.currentIdx) {
+      dragRef.current.currentIdx = newIdx
+      setDragOverIdx(newIdx)
+    }
+  }
+
+  const handleTouchEnd = () => {
+    if (!dragRef.current) return
+    const { startIdx, currentIdx } = dragRef.current
+    if (startIdx !== currentIdx) {
+      const reordered = [...nodes]
+      const [moved] = reordered.splice(startIdx, 1)
+      reordered.splice(currentIdx, 0, moved)
+      persistOrder(reordered)
+    }
+    dragRef.current = null
+    setDragOverIdx(null)
   }
 
   return (
@@ -321,7 +389,20 @@ export default function Dashboard() {
             <div
               key={node.id}
               className="data-row"
+              draggable={canReorder}
+              onDragStart={(e) => handleDragStart(e, node.id, i)}
+              onDragOver={(e) => canReorder && handleDragOver(e, i)}
+              onDrop={(e) => canReorder && handleDrop(e, i)}
+              onDragEnd={handleDragEnd}
+              onTouchStart={(e) => canReorder && handleTouchStart(e, node.id, i)}
+              onTouchMove={(e) => canReorder && handleTouchMove(e, i)}
+              onTouchEnd={canReorder ? handleTouchEnd : undefined}
               onClick={() => navigate(`/node/${node.id}${listId ? `?listId=${listId}` : ''}`)}
+              style={{
+                opacity: dragRef.current?.id === node.id ? 0.4 : 1,
+                borderTop: dragOverIdx === i ? '2px solid #546E7A' : undefined,
+                cursor: canReorder ? 'grab' : undefined,
+              }}
             >
               <span className="id">{String(i + 1).padStart(2, '0')}</span>
               <span className="val">

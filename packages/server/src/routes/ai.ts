@@ -39,7 +39,6 @@ router.post('/smart-add', async (c) => {
     type: result.node.type,
     description: result.node.description ?? null,
     status: result.node.status ?? 'pendiente',
-    priority: result.node.priority ?? 'media',
     tags: result.node.tags.length > 0 ? JSON.stringify(result.node.tags) : null,
     author: result.node.author ?? null,
     year: result.node.year ?? null,
