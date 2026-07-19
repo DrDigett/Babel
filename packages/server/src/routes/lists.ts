@@ -3,9 +3,13 @@ import { db } from '../db'
 import { lists, listNodes, nodes } from '../db/schema'
 import { Hono } from 'hono'
 import { eq, and, asc, sql } from 'drizzle-orm'
+import { requireAuth } from '../lib/auth'
+import { getUserId, type AppEnv } from '../lib/types'
 import type { CreateListInput } from '@babel-plus/shared'
 
-const router = new Hono()
+const router = new Hono<AppEnv>()
+
+router.use('*', requireAuth)
 
 function generateId(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
@@ -26,11 +30,13 @@ async function generateUniqueId(): Promise<string> {
 }
 
 router.get('/', async (c) => {
-  const all = await db.select().from(lists).orderBy(asc(lists.createdAt))
+  const userId = getUserId(c)
+  const all = await db.select().from(lists).where(eq(lists.userId, userId)).orderBy(asc(lists.createdAt))
   return c.json(all)
 })
 
 router.post('/', async (c) => {
+  const userId = getUserId(c)
   const body = await c.req.json<CreateListInput>()
   if (body.name !== undefined && (typeof body.name !== 'string' || body.name.trim().length === 0)) {
     return c.json({ error: 'name cannot be empty' }, 400)
@@ -45,6 +51,7 @@ router.post('/', async (c) => {
     id,
     name: body.name?.trim() ?? id,
     description: body.description?.slice(0, 2000) ?? null,
+    userId,
     createdAt: now,
     updatedAt: now,
   }
@@ -53,8 +60,9 @@ router.post('/', async (c) => {
 })
 
 router.get('/:id', async (c) => {
+  const userId = getUserId(c)
   const id = c.req.param('id')
-  const [list] = await db.select().from(lists).where(eq(lists.id, id)).limit(1)
+  const [list] = await db.select().from(lists).where(and(eq(lists.id, id), eq(lists.userId, userId))).limit(1)
   if (!list) return c.json({ error: 'not found' }, 404)
 
   const items = await db
@@ -79,9 +87,10 @@ router.get('/:id', async (c) => {
 })
 
 router.put('/:id', async (c) => {
+  const userId = getUserId(c)
   const id = c.req.param('id')
   const body = await c.req.json<Partial<CreateListInput>>()
-  const [existing] = await db.select().from(lists).where(eq(lists.id, id)).limit(1)
+  const [existing] = await db.select().from(lists).where(and(eq(lists.id, id), eq(lists.userId, userId))).limit(1)
   if (!existing) return c.json({ error: 'not found' }, 404)
 
   if (body.name !== undefined && (typeof body.name !== 'string' || body.name.trim().length === 0)) {
@@ -98,8 +107,9 @@ router.put('/:id', async (c) => {
 })
 
 router.delete('/:id', async (c) => {
+  const userId = getUserId(c)
   const id = c.req.param('id')
-  const [existing] = await db.select({ id: lists.id }).from(lists).where(eq(lists.id, id)).limit(1)
+  const [existing] = await db.select({ id: lists.id }).from(lists).where(and(eq(lists.id, id), eq(lists.userId, userId))).limit(1)
   if (!existing) return c.json({ error: 'not found' }, 404)
 
   await db.delete(lists).where(eq(lists.id, id))
@@ -107,21 +117,22 @@ router.delete('/:id', async (c) => {
 })
 
 router.post('/:id/nodes', async (c) => {
+  const userId = getUserId(c)
   const listId = c.req.param('id')
   const { nodeId } = await c.req.json<{ nodeId: string }>()
 
-  const [list] = await db.select({ id: lists.id }).from(lists).where(eq(lists.id, listId)).limit(1)
+  const [list] = await db.select({ id: lists.id }).from(lists).where(and(eq(lists.id, listId), eq(lists.userId, userId))).limit(1)
   if (!list) return c.json({ error: 'list not found' }, 404)
 
-  const [node] = await db.select({ id: nodes.id }).from(nodes).where(eq(nodes.id, nodeId)).limit(1)
+  const [node] = await db.select({ id: nodes.id }).from(nodes).where(and(eq(nodes.id, nodeId), eq(nodes.userId, userId))).limit(1)
   if (!node) return c.json({ error: 'node not found' }, 404)
 
-  const [existing] = await db
+  const [existingEntry] = await db
     .select({ id: listNodes.id })
     .from(listNodes)
     .where(and(eq(listNodes.listId, listId), eq(listNodes.nodeId, nodeId)))
     .limit(1)
-  if (existing) return c.json({ error: 'node already in list' }, 409)
+  if (existingEntry) return c.json({ error: 'node already in list' }, 409)
 
   const [{ maxPos }] = await db
     .select({ maxPos: sql<number>`COALESCE(MAX(position), -1)` })
@@ -140,41 +151,50 @@ router.post('/:id/nodes', async (c) => {
 })
 
 router.delete('/:id/nodes/:nodeId', async (c) => {
+  const userId = getUserId(c)
   const listId = c.req.param('id')
   const nodeId = c.req.param('nodeId')
 
-  const [existing] = await db
+  const [list] = await db.select({ id: lists.id }).from(lists).where(and(eq(lists.id, listId), eq(lists.userId, userId))).limit(1)
+  if (!list) return c.json({ error: 'list not found' }, 404)
+
+  const [existingEntry] = await db
     .select({ id: listNodes.id })
     .from(listNodes)
     .where(and(eq(listNodes.listId, listId), eq(listNodes.nodeId, nodeId)))
     .limit(1)
-  if (!existing) return c.json({ error: 'not found' }, 404)
+  if (!existingEntry) return c.json({ error: 'not found' }, 404)
 
-  await db.delete(listNodes).where(eq(listNodes.id, existing.id))
+  await db.delete(listNodes).where(eq(listNodes.id, existingEntry.id))
   return c.json({ success: true })
 })
 
 router.put('/:id/nodes/:nodeId/rating', async (c) => {
+  const userId = getUserId(c)
   const listId = c.req.param('id')
   const nodeId = c.req.param('nodeId')
   const { rating } = await c.req.json<{ rating: number | null }>()
 
-  const [existing] = await db
+  const [list] = await db.select({ id: lists.id }).from(lists).where(and(eq(lists.id, listId), eq(lists.userId, userId))).limit(1)
+  if (!list) return c.json({ error: 'list not found' }, 404)
+
+  const [existingEntry] = await db
     .select({ id: listNodes.id })
     .from(listNodes)
     .where(and(eq(listNodes.listId, listId), eq(listNodes.nodeId, nodeId)))
     .limit(1)
-  if (!existing) return c.json({ error: 'not found' }, 404)
+  if (!existingEntry) return c.json({ error: 'not found' }, 404)
 
-  await db.update(listNodes).set({ rating }).where(eq(listNodes.id, existing.id))
+  await db.update(listNodes).set({ rating }).where(eq(listNodes.id, existingEntry.id))
   return c.json({ success: true })
 })
 
 router.put('/:id/nodes/reorder', async (c) => {
+  const userId = getUserId(c)
   const listId = c.req.param('id')
   const { nodeIds } = await c.req.json<{ nodeIds: string[] }>()
 
-  const [list] = await db.select({ id: lists.id }).from(lists).where(eq(lists.id, listId)).limit(1)
+  const [list] = await db.select({ id: lists.id }).from(lists).where(and(eq(lists.id, listId), eq(lists.userId, userId))).limit(1)
   if (!list) return c.json({ error: 'list not found' }, 404)
 
   for (let i = 0; i < nodeIds.length; i++) {

@@ -15,6 +15,7 @@ import nodesRouter from './routes/nodes'
 import relationsRouter from './routes/relations'
 import searchRouter from './routes/search'
 import listsRouter from './routes/lists'
+import authRouter from './routes/auth'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -40,6 +41,7 @@ app.route('/api/relations', relationsRouter)
 app.route('/api/search', searchRouter)
 app.route('/api/ai', aiRouter)
 app.route('/api/lists', listsRouter)
+app.route('/api/auth', authRouter)
 
 app.get('/api/health', (c) => c.json({ status: 'ok' }))
 

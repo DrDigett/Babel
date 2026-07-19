@@ -1,10 +1,25 @@
+import type { User, AuthResponse } from '@babel-plus/shared'
+
 const BASE = import.meta.env.VITE_API_URL || '/api'
 
+function getToken(): string | null {
+  return typeof window !== 'undefined' ? localStorage.getItem('token') : null
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = getToken()
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     ...options,
   })
+  if (res.status === 401) {
+    localStorage.removeItem('token')
+    window.location.href = '/login'
+    throw new Error('No autenticado')
+  }
   if (!res.ok) {
     let msg = `API error: ${res.status}`
     try {
@@ -17,6 +32,13 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  auth: {
+    login: (email: string, password: string) =>
+      request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+    register: (email: string, username: string, password: string) =>
+      request<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify({ email, username, password }) }),
+    me: () => request<User>('/auth/me'),
+  },
   nodes: {
     list: (params?: string) => request<any[]>(`/nodes${params ? `?${params}` : ''}`),
     get: (id: string) => request<any>(`/nodes/${id}`),

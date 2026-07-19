@@ -1,11 +1,16 @@
 import { db } from '../db'
 import { nodes } from '../db/schema'
 import { Hono } from 'hono'
-import { ilike, or } from 'drizzle-orm'
+import { ilike, or, eq, and } from 'drizzle-orm'
+import { requireAuth } from '../lib/auth'
+import { getUserId, type AppEnv } from '../lib/types'
 
-const router = new Hono()
+const router = new Hono<AppEnv>()
+
+router.use('*', requireAuth)
 
 router.get('/', async (c) => {
+  const userId = getUserId(c)
   const q = c.req.query('q')
   if (!q) return c.json([])
 
@@ -15,11 +20,14 @@ router.get('/', async (c) => {
     .select()
     .from(nodes)
     .where(
-      or(
-        ilike(nodes.title, `%${sanitized}%`),
-        ilike(nodes.description, `%${sanitized}%`),
-        ilike(nodes.author, `%${sanitized}%`),
-        ilike(nodes.tags, `%${sanitized}%`),
+      and(
+        eq(nodes.userId, userId),
+        or(
+          ilike(nodes.title, `%${sanitized}%`),
+          ilike(nodes.description, `%${sanitized}%`),
+          ilike(nodes.author, `%${sanitized}%`),
+          ilike(nodes.tags, `%${sanitized}%`),
+        ),
       ),
     )
 

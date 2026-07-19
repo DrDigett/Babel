@@ -70,14 +70,16 @@ export default function GraphView() {
   const edgesRef = useRef<GraphEdge[]>([])
   const camRef = useRef<Camera>({ x: 0, y: 0, scale: 1 })
   const dragRef = useRef<{
-    type: 'node' | 'pan' | null
+    type: 'node' | 'pan' | 'pinch' | null
     node: GraphNode | null
     ox: number
     oy: number
     startX: number
     startY: number
     camStart: Camera
-  }>({ type: null, node: null, ox: 0, oy: 0, startX: 0, startY: 0, camStart: { x: 0, y: 0, scale: 1 } })
+    pinchDist: number
+  }>({ type: null, node: null, ox: 0, oy: 0, startX: 0, startY: 0, camStart: { x: 0, y: 0, scale: 1 }, pinchDist: 0 })
+  const pointersRef = useRef<Map<number, { clientX: number; clientY: number }>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null)
@@ -283,6 +285,26 @@ export default function GraphView() {
     }
 
     const handlePointerDown = (e: PointerEvent) => {
+      pointersRef.current.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY })
+
+      if (pointersRef.current.size === 2 && dragRef.current.type !== null) {
+        const [p1, p2] = pointersRef.current.values()
+        const dx = p1.clientX - p2.clientX
+        const dy = p1.clientY - p2.clientY
+        dragRef.current = {
+          type: 'pinch',
+          node: null,
+          ox: 0, oy: 0,
+          startX: (p1.clientX + p2.clientX) / 2,
+          startY: (p1.clientY + p2.clientY) / 2,
+          camStart: { ...camRef.current },
+          pinchDist: Math.sqrt(dx * dx + dy * dy),
+        }
+        cv.style.cursor = 'grabbing'
+        cv.setPointerCapture(e.pointerId)
+        return
+      }
+
       const pos = getMousePos(e)
       const world = screenToWorld(pos.sx, pos.sy, camRef.current)
       const hit = hitTest(world.x, world.y, nodes)
@@ -297,6 +319,7 @@ export default function GraphView() {
           startX: pos.sx,
           startY: pos.sy,
           camStart: { ...camRef.current },
+          pinchDist: 0,
         }
         cv.style.cursor = 'grabbing'
       } else {
@@ -307,14 +330,38 @@ export default function GraphView() {
           startX: pos.sx,
           startY: pos.sy,
           camStart: { ...camRef.current },
+          pinchDist: 0,
         }
         cv.style.cursor = 'grabbing'
       }
     }
 
     const handlePointerMove = (e: PointerEvent) => {
-      const pos = getMousePos(e)
+      pointersRef.current.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY })
+
       const drag = dragRef.current
+      const pos = getMousePos(e)
+
+      if (drag.type === 'pinch' && pointersRef.current.size === 2) {
+        const [p1, p2] = pointersRef.current.values()
+        const dx = p1.clientX - p2.clientX
+        const dy = p1.clientY - p2.clientY
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        if (dist < 1) return
+        const factor = drag.pinchDist / dist
+        const newScale = Math.max(0.1, Math.min(5, drag.camStart.scale * factor))
+        const mx = (p1.clientX + p2.clientX) / 2
+        const my = (p1.clientY + p2.clientY) / 2
+        const rect = cv.getBoundingClientRect()
+        const sx = mx - rect.left
+        const sy = my - rect.top
+        const world = screenToWorld(sx, sy, camRef.current)
+        const cam = camRef.current
+        cam.scale = newScale
+        cam.x = sx - world.x * cam.scale
+        cam.y = sy - world.y * cam.scale
+        return
+      }
 
       if (drag.type === 'node' && drag.node) {
         const world = screenToWorld(pos.sx, pos.sy, camRef.current)
@@ -339,6 +386,8 @@ export default function GraphView() {
     }
 
     const handlePointerUp = (e: PointerEvent) => {
+      pointersRef.current.delete(e.pointerId)
+
       const drag = dragRef.current
       if (drag.type === 'node' && drag.node) {
         const pos = getMousePos(e)
@@ -348,12 +397,16 @@ export default function GraphView() {
           navigate(`/node/${drag.node.id}${listId ? `?listId=${listId}` : ''}`)
         }
       }
-      dragRef.current = { type: null, node: null, ox: 0, oy: 0, startX: 0, startY: 0, camStart: { x: 0, y: 0, scale: 1 } }
-      cv.style.cursor = 'default'
+
+      if (pointersRef.current.size < 2) {
+        dragRef.current = { type: null, node: null, ox: 0, oy: 0, startX: 0, startY: 0, camStart: { x: 0, y: 0, scale: 1 }, pinchDist: 0 }
+        cv.style.cursor = 'default'
+      }
     }
 
     const handlePointerLeave = () => {
-      dragRef.current = { type: null, node: null, ox: 0, oy: 0, startX: 0, startY: 0, camStart: { x: 0, y: 0, scale: 1 } }
+      pointersRef.current.clear()
+      dragRef.current = { type: null, node: null, ox: 0, oy: 0, startX: 0, startY: 0, camStart: { x: 0, y: 0, scale: 1 }, pinchDist: 0 }
       setHoveredNode(null)
     }
 

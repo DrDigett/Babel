@@ -3,6 +3,8 @@ import { db } from '../db'
 import { nodes, relations } from '../db/schema'
 import { Hono } from 'hono'
 import { eq, and } from 'drizzle-orm'
+import { requireAuth } from '../lib/auth'
+import { getUserId, type AppEnv } from '../lib/types'
 import type { CreateRelationInput, RelationType } from '@babel-plus/shared'
 
 const RELATION_TYPES: RelationType[] = [
@@ -10,24 +12,25 @@ const RELATION_TYPES: RelationType[] = [
   'influyo_a', 'critica_a', 'inspiro', 'ocurre_en', 'similar_a',
 ]
 
-const router = new Hono()
+const router = new Hono<AppEnv>()
+
+router.use('*', requireAuth)
 
 router.get('/', async (c) => {
+  const userId = getUserId(c)
   const sourceId = c.req.query('sourceId')
   const targetId = c.req.query('targetId')
 
-  const conditions = []
+  const conditions = [eq(relations.userId, userId)]
   if (sourceId) conditions.push(eq(relations.sourceId, sourceId))
   if (targetId) conditions.push(eq(relations.targetId, targetId))
 
-  const all = conditions.length
-    ? await db.select().from(relations).where(and(...conditions))
-    : await db.select().from(relations)
-
+  const all = await db.select().from(relations).where(and(...conditions))
   return c.json(all)
 })
 
 router.post('/', async (c) => {
+  const userId = getUserId(c)
   const body = await c.req.json<CreateRelationInput>()
   if (!body.sourceId || !body.targetId) {
     return c.json({ error: 'sourceId and targetId are required' }, 400)
@@ -39,10 +42,10 @@ router.post('/', async (c) => {
     return c.json({ error: 'source and target must be different' }, 400)
   }
 
-  const [sourceExists] = await db.select({ id: nodes.id }).from(nodes).where(eq(nodes.id, body.sourceId)).limit(1)
-  const [targetExists] = await db.select({ id: nodes.id }).from(nodes).where(eq(nodes.id, body.targetId)).limit(1)
-  if (!sourceExists) return c.json({ error: 'source node not found' }, 404)
-  if (!targetExists) return c.json({ error: 'target node not found' }, 404)
+  const [source] = await db.select({ id: nodes.id }).from(nodes).where(and(eq(nodes.id, body.sourceId), eq(nodes.userId, userId))).limit(1)
+  const [target] = await db.select({ id: nodes.id }).from(nodes).where(and(eq(nodes.id, body.targetId), eq(nodes.userId, userId))).limit(1)
+  if (!source) return c.json({ error: 'source node not found' }, 404)
+  if (!target) return c.json({ error: 'target node not found' }, 404)
 
   const weight = body.weight ?? 1.0
   if (typeof weight !== 'number' || weight < 0 || weight > 1) {
@@ -55,6 +58,7 @@ router.post('/', async (c) => {
     targetId: body.targetId,
     type: body.type,
     weight,
+    userId,
     createdAt: new Date().toISOString(),
   }
   await db.insert(relations).values(relation)
@@ -62,7 +66,10 @@ router.post('/', async (c) => {
 })
 
 router.delete('/:id', async (c) => {
+  const userId = getUserId(c)
   const id = c.req.param('id')
+  const [existing] = await db.select({ id: relations.id }).from(relations).where(and(eq(relations.id, id), eq(relations.userId, userId))).limit(1)
+  if (!existing) return c.json({ error: 'not found' }, 404)
   await db.delete(relations).where(eq(relations.id, id))
   return c.json({ success: true })
 })

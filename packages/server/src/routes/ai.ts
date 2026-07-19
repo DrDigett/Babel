@@ -4,6 +4,8 @@ import { nodes, relations } from '../db/schema'
 import { Hono } from 'hono'
 import { eq, sql, and } from 'drizzle-orm'
 import { classifyAndSuggest } from '../lib/ai'
+import { requireAuth } from '../lib/auth'
+import { getUserId, type AppEnv } from '../lib/types'
 import OpenAI from 'openai'
 import { config } from '../lib/config'
 
@@ -12,7 +14,7 @@ const groq = new OpenAI({
   apiKey: config.groqApiKey,
 })
 
-const router = new Hono()
+const router = new Hono<AppEnv>()
 
 router.post('/classify', async (c) => {
   const { text, typeHint } = await c.req.json<{ text: string; typeHint?: string }>()
@@ -27,7 +29,8 @@ router.post('/classify', async (c) => {
   return c.json(result)
 })
 
-router.post('/smart-add', async (c) => {
+router.post('/smart-add', requireAuth, async (c) => {
+  const userId = getUserId(c)
   const { text, typeHint } = await c.req.json<{ text: string; typeHint?: string }>()
   if (!text || typeof text !== 'string' || text.trim().length === 0) {
     return c.json({ error: 'text is required' }, 400)
@@ -51,6 +54,7 @@ router.post('/smart-add', async (c) => {
     year: result.node.year ?? null,
     link: result.node.link ?? null,
     localFile: null,
+    userId,
     createdAt: now,
     updatedAt: now,
   }
@@ -62,7 +66,7 @@ router.post('/smart-add', async (c) => {
     const [target] = await db
       .select({ id: nodes.id, title: nodes.title })
       .from(nodes)
-      .where(sql`LOWER(${nodes.title}) = LOWER(${rel.targetTitle})`)
+      .where(and(sql`LOWER(${nodes.title}) = LOWER(${rel.targetTitle})`, eq(nodes.userId, userId)))
       .limit(1)
 
     if (target) {
@@ -72,6 +76,7 @@ router.post('/smart-add', async (c) => {
         targetId: target.id,
         type: rel.type,
         weight: rel.weight ?? 1.0,
+        userId,
         createdAt: now,
       }
       await db.insert(relations).values(relation)
@@ -85,9 +90,10 @@ router.post('/smart-add', async (c) => {
   }, 201)
 })
 
-router.post('/reevaluate/:id', async (c) => {
-  const id = c.req.param('id')
-  const [node] = await db.select().from(nodes).where(eq(nodes.id, id)).limit(1)
+router.post('/reevaluate/:id', requireAuth, async (c) => {
+  const userId = getUserId(c)
+  const id = c.req.param('id') as string
+  const [node] = await db.select().from(nodes).where(and(eq(nodes.id, id), eq(nodes.userId, userId))).limit(1)
   if (!node) return c.json({ error: 'node not found' }, 404)
 
   const parts = [node.title]
@@ -101,8 +107,8 @@ router.post('/reevaluate/:id', async (c) => {
 
   const result = await classifyAndSuggest(input, node.type)
 
-  const existingOut = await db.select().from(relations).where(eq(relations.sourceId, id))
-  const existingIn = await db.select().from(relations).where(eq(relations.targetId, id))
+  const existingOut = await db.select().from(relations).where(and(eq(relations.sourceId, id), eq(relations.userId, userId)))
+  const existingIn = await db.select().from(relations).where(and(eq(relations.targetId, id), eq(relations.userId, userId)))
 
   const now = new Date().toISOString()
   const added: string[] = []
@@ -113,7 +119,7 @@ router.post('/reevaluate/:id', async (c) => {
     const [target] = await db
       .select({ id: nodes.id })
       .from(nodes)
-      .where(sql`LOWER(${nodes.title}) = LOWER(${suggested.targetTitle})`)
+      .where(and(sql`LOWER(${nodes.title}) = LOWER(${suggested.targetTitle})`, eq(nodes.userId, userId)))
       .limit(1)
     if (!target) continue
 
@@ -129,6 +135,7 @@ router.post('/reevaluate/:id', async (c) => {
         targetId: target.id,
         type: suggested.type,
         weight: suggested.weight ?? 1.0,
+        userId,
         createdAt: now,
       })
       added.push(target.id)
@@ -153,7 +160,7 @@ router.post('/reevaluate/:id', async (c) => {
     }
   }
 
-  const updatedOut = await db.select().from(relations).where(eq(relations.sourceId, id))
+  const updatedOut = await db.select().from(relations).where(and(eq(relations.sourceId, id), eq(relations.userId, userId)))
 
   return c.json({
     kept: kept.length,

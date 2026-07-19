@@ -1,5 +1,13 @@
 import { pgTable, text, integer, real, unique } from 'drizzle-orm/pg-core'
 
+export const users = pgTable('users', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  username: text('username').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  createdAt: text('created_at').notNull(),
+})
+
 export const nodes = pgTable('nodes', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
@@ -13,6 +21,7 @@ export const nodes = pgTable('nodes', {
   localFile: text('local_file'),
   rating: integer('rating'),
   order: integer('order').notNull().default(0),
+  userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 })
@@ -23,6 +32,7 @@ export const relations = pgTable('relations', {
   targetId: text('target_id').notNull().references(() => nodes.id, { onDelete: 'cascade' }),
   type: text('type').notNull(),
   weight: real('weight').notNull().default(1.0),
+  userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
   createdAt: text('created_at').notNull(),
 })
 
@@ -30,6 +40,7 @@ export const lists = pgTable('lists', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   description: text('description'),
+  userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 })

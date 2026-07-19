@@ -3,36 +3,40 @@ import { db } from '../db'
 import { nodes } from '../db/schema'
 import { Hono } from 'hono'
 import { eq, and, asc, sql } from 'drizzle-orm'
+import { requireAuth } from '../lib/auth'
+import { getUserId, type AppEnv } from '../lib/types'
 import type { CreateNodeInput, NodeType, NodeStatus } from '@babel-plus/shared'
 
 const NODE_TYPES: NodeType[] = ['libro', 'pelicula', 'articulo', 'video', 'curso', 'videojuego']
 const NODE_STATUSES: NodeStatus[] = ['pendiente', 'en_progreso', 'terminado', 'abandonado']
 
-const router = new Hono()
+const router = new Hono<AppEnv>()
+
+router.use('*', requireAuth)
 
 router.get('/', async (c) => {
+  const userId = getUserId(c)
   const type = c.req.query('type')
   const status = c.req.query('status')
 
-  const conditions = []
+  const conditions = [eq(nodes.userId, userId)]
   if (type) conditions.push(eq(nodes.type, type))
   if (status) conditions.push(eq(nodes.status, status))
 
-  const all = conditions.length
-    ? await db.select().from(nodes).where(and(...conditions)).orderBy(asc(nodes.order))
-    : await db.select().from(nodes).orderBy(asc(nodes.order))
-
+  const all = await db.select().from(nodes).where(and(...conditions)).orderBy(asc(nodes.order))
   return c.json(all)
 })
 
 router.get('/:id', async (c) => {
+  const userId = getUserId(c)
   const id = c.req.param('id')
-  const [node] = await db.select().from(nodes).where(eq(nodes.id, id)).limit(1)
+  const [node] = await db.select().from(nodes).where(and(eq(nodes.id, id), eq(nodes.userId, userId))).limit(1)
   if (!node) return c.json({ error: 'not found' }, 404)
   return c.json(node)
 })
 
 router.post('/', async (c) => {
+  const userId = getUserId(c)
   const body = await c.req.json<CreateNodeInput>()
   if (!body.title || typeof body.title !== 'string' || body.title.trim().length === 0) {
     return c.json({ error: 'title is required' }, 400)
@@ -51,7 +55,7 @@ router.post('/', async (c) => {
   }
 
   const now = new Date().toISOString()
-  const [{ maxOrder }] = await db.select({ maxOrder: sql<number>`coalesce(max(${nodes.order}), 0)` }).from(nodes)
+  const [{ maxOrder }] = await db.select({ maxOrder: sql<number>`coalesce(max(${nodes.order}), 0)` }).from(nodes).where(eq(nodes.userId, userId))
   const node = {
     id: crypto.randomUUID(),
     title: body.title.trim(),
@@ -64,6 +68,7 @@ router.post('/', async (c) => {
     link: body.link?.slice(0, 2000) ?? null,
     localFile: body.localFile?.slice(0, 500) ?? null,
     order: maxOrder + 1,
+    userId,
     createdAt: now,
     updatedAt: now,
   }
@@ -72,17 +77,19 @@ router.post('/', async (c) => {
 })
 
 router.put('/reorder', async (c) => {
+  const userId = getUserId(c)
   const { nodeIds } = await c.req.json<{ nodeIds: string[] }>()
   for (let i = 0; i < nodeIds.length; i++) {
-    await db.update(nodes).set({ order: i }).where(eq(nodes.id, nodeIds[i]))
+    await db.update(nodes).set({ order: i }).where(and(eq(nodes.id, nodeIds[i]), eq(nodes.userId, userId)))
   }
   return c.json({ success: true })
 })
 
 router.put('/:id', async (c) => {
+  const userId = getUserId(c)
   const id = c.req.param('id')
   const body = await c.req.json<Partial<CreateNodeInput>>()
-  const [existing] = await db.select().from(nodes).where(eq(nodes.id, id)).limit(1)
+  const [existing] = await db.select().from(nodes).where(and(eq(nodes.id, id), eq(nodes.userId, userId))).limit(1)
   if (!existing) return c.json({ error: 'not found' }, 404)
 
   if (body.title !== undefined && (typeof body.title !== 'string' || body.title.trim().length === 0)) {
@@ -107,11 +114,12 @@ router.put('/:id', async (c) => {
 })
 
 router.delete('/:id', async (c) => {
+  const userId = getUserId(c)
   const id = c.req.param('id')
-  const [deleted] = await db.select({ order: nodes.order }).from(nodes).where(eq(nodes.id, id)).limit(1)
+  const [deleted] = await db.select({ order: nodes.order }).from(nodes).where(and(eq(nodes.id, id), eq(nodes.userId, userId))).limit(1)
   await db.delete(nodes).where(eq(nodes.id, id))
   if (deleted) {
-    const remaining = await db.select({ id: nodes.id }).from(nodes).where(sql`${nodes.order} > ${deleted.order}`).orderBy(asc(nodes.order))
+    const remaining = await db.select({ id: nodes.id }).from(nodes).where(and(sql`${nodes.order} > ${deleted.order}`, eq(nodes.userId, userId))).orderBy(asc(nodes.order))
     for (let i = 0; i < remaining.length; i++) {
       await db.update(nodes).set({ order: deleted.order + i }).where(eq(nodes.id, remaining[i].id))
     }

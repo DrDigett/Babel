@@ -1,4 +1,5 @@
 import { NavLink, useLocation, useSearchParams } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 const links = [
   { to: '/dashboard', label: 'Inicio', icon: '01' },
@@ -10,6 +11,7 @@ export default function Sidebar() {
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const listId = searchParams.get('listId')
+  const { user, logout } = useAuth()
 
   return (
     <nav className="sidebar" style={{
@@ -89,13 +91,54 @@ export default function Sidebar() {
         marginTop: 'auto',
         padding: '16px 20px',
         borderTop: '1px solid #2A2A2A',
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 9,
-        color: '#333',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
       }}>
-        V: 2.0.4 // ACTIVE
+        {user && (
+          <>
+            <div style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 10,
+              color: '#CFD8DC',
+              marginBottom: 8,
+            }}>
+              {user.username}
+            </div>
+            <div style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 9,
+              color: '#546E7A',
+              marginBottom: 12,
+              wordBreak: 'break-all',
+            }}>
+              {user.email}
+            </div>
+            <button
+              onClick={logout}
+              style={{
+                background: 'none',
+                border: '1px solid #333',
+                color: '#555',
+                cursor: 'pointer',
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 9,
+                padding: '4px 8px',
+                textTransform: 'uppercase',
+                letterSpacing: 1,
+              }}
+            >
+              Salir
+            </button>
+          </>
+        )}
+        <div style={{
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 9,
+          color: '#333',
+          textTransform: 'uppercase',
+          letterSpacing: 1,
+          marginTop: 12,
+        }}>
+          V: 2.0.4 // ACTIVE
+        </div>
       </div>
     </nav>
   )
