@@ -31,6 +31,14 @@ export default function NodeDetail() {
   const [relatedNodes, setRelatedNodes] = useState<Node[]>([])
   const [incomingRelations, setIncomingRelations] = useState<(Relation & { sourceTitle?: string })[]>([])
   const [showAdd, setShowAdd] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editAuthor, setEditAuthor] = useState('')
+  const [editTags, setEditTags] = useState('')
+  const [editYear, setEditYear] = useState('')
+  const [reevaluating, setReevaluating] = useState(false)
+  const [researchUrl, setResearchUrl] = useState('')
+  const [researching, setResearching] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Node[]>([])
   const [selectedTarget, setSelectedTarget] = useState<Node | null>(null)
@@ -110,6 +118,48 @@ export default function NodeDetail() {
     const newStatus = node.status === 'pendiente' ? 'terminado' : 'pendiente'
     await api.nodes.update(id, { status: newStatus })
     setNode({ ...node, status: newStatus })
+  }
+
+  function openEdit() {
+    if (!node) return
+    setEditTitle(node.title)
+    setEditAuthor(node.author ?? '')
+    setEditTags(node.tags ? JSON.parse(node.tags).join(', ') : '')
+    setEditYear(node.year?.toString() ?? '')
+    setShowEdit(true)
+  }
+
+  async function saveEdit() {
+    if (!id) return
+    const title = editTitle.trim()
+    const author = editAuthor.trim()
+    const tags = editTags.split(',').map(t => t.trim()).filter(Boolean)
+    const year = editYear ? parseInt(editYear) : undefined
+    await api.nodes.update(id, {
+      ...(title ? { title } : {}),
+      ...(author ? { author } : { author: null }),
+      ...(tags.length > 0 ? { tags } : { tags: [] }),
+      ...(year ? { year } : { year: null }),
+    })
+    setShowEdit(false)
+    setReevaluating(true)
+    await api.ai.reevaluate(id)
+    setReevaluating(false)
+    loadNode()
+  }
+
+  async function handleResearch() {
+    if (!researchUrl.startsWith('https://')) return
+    setResearching(true)
+    try {
+      const data = await api.ai.research(researchUrl)
+      if (data.title) setEditTitle(data.title)
+      if (data.author) setEditAuthor(data.author)
+      if (data.tags?.length > 0) setEditTags(data.tags.join(', '))
+      if (data.year) setEditYear(data.year.toString())
+      setResearchUrl('')
+    } catch {}
+    setResearching(false)
   }
 
   function getCurrentPosition(): number {
@@ -200,6 +250,21 @@ export default function NodeDetail() {
         <Link to={listId ? `/dashboard?listId=${listId}` : '/'} style={{ color: '#546E7A' }}>{'<'} INICIO</Link>
         <Link to={listId ? `/graph?listId=${listId}` : '/graph'} style={{ color: '#546E7A' }}>{'<'} GRAFO</Link>
       </div>
+
+      {reevaluating && (
+        <div style={{
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 11,
+          color: '#546E7A',
+          padding: '10px 14px',
+          border: '1px solid #333',
+          background: '#111',
+          marginBottom: 16,
+          letterSpacing: 1,
+        }}>
+          {'>'} Reevaluando relaciones...
+        </div>
+      )}
 
       {/* Node info */}
       <div className="card">
@@ -505,8 +570,15 @@ export default function NodeDetail() {
         </div>
       </div>
 
-      {/* Delete */}
-      <div style={{ marginTop: 32 }}>
+      {/* Edit / Delete */}
+      <div style={{ marginTop: 32, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button
+          onClick={() => showEdit ? setShowEdit(false) : openEdit()}
+          className="btn"
+          style={{ fontSize: 11 }}
+        >
+          {showEdit ? 'Cancelar' : 'Editar este elemento'}
+        </button>
         <button
           onClick={async () => {
             if (listId) {
@@ -527,6 +599,129 @@ export default function NodeDetail() {
           Eliminar este elemento
         </button>
       </div>
+
+      {showEdit && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            background: 'rgba(0,0,0,0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: "'JetBrains Mono', monospace",
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowEdit(false) }}
+        >
+          <div style={{
+            background: '#111',
+            border: '1px solid #333',
+            padding: '40px 48px',
+            maxWidth: 440,
+            width: '100%',
+            position: 'relative',
+          }}>
+            <div className="corner-mark tl" />
+            <div className="corner-mark tr" />
+            <div className="corner-mark bl" style={{ bottom: 'auto', top: 8 }} />
+            <div className="corner-mark br" style={{ bottom: 'auto', top: 8 }} />
+
+            <div
+              onClick={() => setShowEdit(false)}
+              style={{
+                position: 'absolute',
+                top: 12,
+                right: 16,
+                fontSize: 18,
+                color: '#555',
+                cursor: 'pointer',
+                lineHeight: 1,
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#E0E0E0')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#555')}
+            >
+              ✕
+            </div>
+
+            <div className="card-label" style={{ marginBottom: 16 }}>EDIT // NODE</div>
+            <h2 style={{ marginTop: 0, marginBottom: 20 }}>Editar metadatos</h2>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div>
+                <label style={{ fontSize: 9, color: '#546E7A', letterSpacing: 2, textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Título</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="Título del elemento..."
+                  style={{ width: '100%', padding: '6px 8px', background: '#1a1a1a', border: '1px solid #333', color: '#E0E0E0', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 9, color: '#546E7A', letterSpacing: 2, textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Autor</label>
+                <input
+                  type="text"
+                  value={editAuthor}
+                  onChange={(e) => setEditAuthor(e.target.value)}
+                  placeholder="Nombre del autor..."
+                  style={{ width: '100%', padding: '6px 8px', background: '#1a1a1a', border: '1px solid #333', color: '#E0E0E0', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 9, color: '#546E7A', letterSpacing: 2, textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Tags (separados por coma)</label>
+                <input
+                  type="text"
+                  value={editTags}
+                  onChange={(e) => setEditTags(e.target.value)}
+                  placeholder="filosofía, ciencia, ..."
+                  style={{ width: '100%', padding: '6px 8px', background: '#1a1a1a', border: '1px solid #333', color: '#E0E0E0', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 9, color: '#546E7A', letterSpacing: 2, textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Año</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={editYear}
+                  onChange={(e) => setEditYear(e.target.value.replace(/[^0-9\-]/g, ''))}
+                  placeholder="2024"
+                  style={{ width: 120, padding: '6px 8px', background: '#1a1a1a', border: '1px solid #333', color: '#E0E0E0', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, outline: 'none' }}
+                />
+              </div>
+
+              {/* Research-IA */}
+              <div style={{ borderTop: '1px solid #222', paddingTop: 10 }}>
+                <label style={{ fontSize: 9, color: '#546E7A', letterSpacing: 2, textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Research-IA</label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input
+                    type="text"
+                    value={researchUrl}
+                    onChange={(e) => setResearchUrl(e.target.value)}
+                    placeholder="https://..."
+                    onKeyDown={(e) => { if (e.key === 'Enter' && researchUrl.startsWith('https://')) handleResearch() }}
+                    style={{ flex: 1, padding: '6px 8px', background: '#1a1a1a', border: '1px solid #333', color: '#E0E0E0', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  <button
+                    className="btn"
+                    onClick={handleResearch}
+                    disabled={!researchUrl.startsWith('https://') || researching}
+                    style={{ fontSize: 10, opacity: !researchUrl.startsWith('https://') || researching ? 0.5 : 1, whiteSpace: 'nowrap' }}
+                  >
+                    {researching ? 'Buscando...' : 'Buscar'}
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <button className="btn btn-primary" style={{ fontSize: 11 }} onClick={saveEdit}>
+                  Guardar cambios
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
