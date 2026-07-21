@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext'
 const links = [
   { to: '/dashboard', label: 'Inicio', icon: '01' },
   { to: '/graph', label: 'Grafo', icon: '02' },
-  { to: '/data', label: 'Import/Export', icon: '03' },
+  { to: '/profile', label: 'Perfil', icon: '03' },
+  { to: '/data', label: 'Import/Export', icon: '04' },
 ]
 
 export default function Sidebar() {

@@ -38,6 +38,10 @@ export const api = {
     register: (email: string, username: string, password: string) =>
       request<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify({ email, username, password }) }),
     me: () => request<User>('/auth/me'),
+    updatePassword: (currentPassword: string, newPassword: string) =>
+      request<{ ok: boolean }>('/auth/password', { method: 'PUT', body: JSON.stringify({ currentPassword, newPassword }) }),
+    searchUsers: (q: string) => request<{ id: string; username: string; createdAt: string }[]>(`/auth/search?q=${encodeURIComponent(q)}`),
+    getProfile: (id: string) => request<any>(`/auth/profile/${id}`),
   },
   nodes: {
     list: (params?: string) => request<any[]>(`/nodes${params ? `?${params}` : ''}`),

@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import NodeDetail from './pages/NodeDetail'
 import GraphView from './pages/GraphView'
 import ImportExport from './pages/ImportExport'
+import ProfilePage from './pages/ProfilePage'
 import NotFoundPage from './pages/NotFoundPage'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -26,6 +27,8 @@ export default function App() {
           <Route path="/graph" element={<ProtectedRoute><Layout><GraphView /></Layout></ProtectedRoute>} />
           <Route path="/node/:id" element={<ProtectedRoute><Layout><NodeDetail /></Layout></ProtectedRoute>} />
           <Route path="/data" element={<ProtectedRoute><Layout><ImportExport /></Layout></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Layout><ProfilePage /></Layout></ProtectedRoute>} />
+          <Route path="/profile/:id" element={<ProtectedRoute><Layout><ProfilePage /></Layout></ProtectedRoute>} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </BrowserRouter>

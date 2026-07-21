@@ -1,0 +1,362 @@
+import { useState, useEffect, useRef } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { api } from '../api/client'
+import type { Node as BabelNode } from '@babel-plus/shared'
+
+const TYPE_COLORS: Record<string, string> = {
+  libro: '#4a90d9', pelicula: '#50c878', articulo: '#4a90d9',
+  video: '#9b59b6', curso: '#9b59b6', videojuego: '#e67e22',
+}
+
+interface SearchUser { id: string; username: string; createdAt: string }
+
+export default function ProfilePage() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
+  const isOwn = !id || id === user?.id
+
+  const [nodes, setNodes] = useState<BabelNode[]>([])
+  const [relationsCount, setRelationsCount] = useState(0)
+  const photoKey = isOwn ? `profilePhoto_${user?.id}` : `profilePhoto_${id}`
+  const [photoUrl, setPhotoUrl] = useState(() => localStorage.getItem(photoKey) ?? '')
+  const [photoInput, setPhotoInput] = useState(photoUrl)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [showModal, setShowModal] = useState(false)
+  const [showPhotoModal, setShowPhotoModal] = useState(false)
+
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchUser[]>([])
+  const [searching, setSearching] = useState(false)
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>()
+  const searchRef = useRef<HTMLDivElement>(null)
+
+  // Other user's profile data
+  const [profile, setProfile] = useState<any>(null)
+
+  useEffect(() => {
+    if (isOwn) {
+      setPhotoUrl(localStorage.getItem(`profilePhoto_${user?.id}`) ?? '')
+      Promise.all([api.nodes.list(), api.relations.list()])
+        .then(([n, r]) => { setNodes(n); setRelationsCount(r.length) })
+        .catch(() => {})
+    } else if (id) {
+      setPhotoUrl(localStorage.getItem(`profilePhoto_${id}`) ?? '')
+      api.auth.getProfile(id).then(setProfile).catch(() => setProfile(null))
+    }
+  }, [id, isOwn, user?.id])
+
+  useEffect(() => {
+    if (!searchQuery.trim()) { setSearchResults([]); return }
+    clearTimeout(searchTimer.current)
+    searchTimer.current = setTimeout(() => {
+      setSearching(true)
+      api.auth.searchUsers(searchQuery.trim())
+        .then(setSearchResults)
+        .catch(() => setSearchResults([]))
+        .finally(() => setSearching(false))
+    }, 300)
+    return () => clearTimeout(searchTimer.current)
+  }, [searchQuery])
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchResults([])
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const displayName = isOwn ? user?.username : profile?.username
+  const initials = displayName ? displayName.slice(0, 2).toUpperCase() : '??'
+  const memberDate = (isOwn ? user?.createdAt : profile?.createdAt)
+    ? new Date(isOwn ? user!.createdAt : profile.createdAt).toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' })
+    : '—'
+
+  const userNodes = isOwn ? nodes : (profile?.terminated ?? []).concat(profile?.topRated ?? [])
+  const terminated = isOwn
+    ? nodes.filter((n) => n.status === 'terminado').sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    : (profile?.terminated ?? [])
+  const topRated = isOwn
+    ? [...nodes].filter((n) => n.rating != null).sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 10)
+    : (profile?.topRated ?? [])
+
+  const nodeCount = isOwn ? nodes.length : (profile?.nodeCount ?? 0)
+  const relCount = isOwn ? relationsCount : (profile?.relationCount ?? 0)
+  const termCount = isOwn ? terminated.length : (profile?.terminatedCount ?? 0)
+
+  function savePhoto() {
+    setPhotoUrl(photoInput)
+    localStorage.setItem(photoKey, photoInput)
+    setMsg('Foto actualizada')
+  }
+
+  async function handlePasswordChange(e: React.FormEvent) {
+    e.preventDefault()
+    setMsg('')
+    if (newPassword !== confirmPassword) { setMsg('Error: Las contraseñas no coinciden'); return }
+    if (newPassword.length < 8) { setMsg('Error: Mínimo 8 caracteres'); return }
+    setSaving(true)
+    try {
+      await api.auth.updatePassword(currentPassword, newPassword)
+      setMsg('Contraseña actualizada')
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
+    } catch (e) { setMsg(`Error: ${e instanceof Error ? e.message : 'desconocido'}`) }
+    setSaving(false)
+  }
+
+  const avatar = photoUrl ? (
+    <img src={photoUrl} alt="avatar" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+      style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: '50%', border: '1px solid #333' }} />
+  ) : null
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', background: '#111', border: '1px solid #333', color: '#E0E0E0',
+    fontFamily: "'JetBrains Mono', monospace", fontSize: 13, padding: '10px 12px',
+    outline: 'none', boxSizing: 'border-box',
+  }
+
+  const labelStyle: React.CSSProperties = {
+    fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#757575',
+    textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, display: 'block',
+  }
+
+  function renderNodeRow(n: { id: string; title: string; type: string; rating?: number | null }) {
+    return (
+      <div key={n.id} style={{
+        display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0',
+        borderBottom: '1px solid #2A2A2A', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, cursor: 'pointer',
+      }}
+        onClick={() => navigate(`/node/${n.id}`)}
+      >
+        {n.rating != null && (
+          <span style={{ color: '#f9a825', fontSize: 11, fontWeight: 700, minWidth: 20, textAlign: 'right' }}>
+            {n.rating}
+          </span>
+        )}
+        <span style={{ color: TYPE_COLORS[n.type] ?? '#757575', fontSize: 9, fontWeight: 700, minWidth: 20 }}>
+          {n.type.slice(0, 3).toUpperCase()}
+        </span>
+        <span style={{ color: '#E0E0E0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {n.title}
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      {showPhotoModal && photoUrl && (
+        <div onClick={() => setShowPhotoModal(false)} style={{
+          position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.9)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+        }}>
+          <button onClick={() => setShowPhotoModal(false)} style={{
+            position: 'absolute', top: 16, right: 20, background: 'none',
+            border: 'none', color: '#757575', cursor: 'pointer', fontSize: 24, zIndex: 1,
+          }}>×</button>
+          <img
+            src={photoUrl}
+            alt="foto de perfil"
+            style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', border: '1px solid #333' }}
+          />
+        </div>
+      )}
+
+      {!isOwn && (
+        <div className="card" style={{ position: 'relative', padding: '16px 25px', marginBottom: 16 }}>
+          <div className="card-label">00 // VOLVER</div>
+          <button className="btn" onClick={() => navigate('/profile')} style={{ fontSize: 11 }}>
+            {'<'} Volver a mi perfil
+          </button>
+        </div>
+      )}
+
+      <div className="card" style={{ position: 'relative' }}>
+        <div className="card-label">01 // USER_DATA</div>
+        <h2>{isOwn ? 'Mi perfil' : 'Perfil'}</h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, marginTop: 16, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24, minWidth: 0 }}>
+            <div
+              style={{
+                width: 80, height: 80, minWidth: 80, background: '#111', border: '1px solid #333',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: "'Inter', sans-serif", fontSize: 28, fontWeight: 800,
+                color: '#546E7A', borderRadius: '50%', overflow: 'hidden',
+                cursor: photoUrl ? 'pointer' : 'default',
+              }}
+              onClick={() => photoUrl && setShowPhotoModal(true)}
+            >
+              {avatar || initials}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 20, fontWeight: 800, color: '#CFD8DC', marginBottom: 4 }}>
+                {displayName}
+              </div>
+              {isOwn && (
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: '#757575', marginBottom: 4 }}>
+                  {user?.email}
+                </div>
+              )}
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#546E7A' }}>
+                Miembro desde {memberDate}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 20 }}>
+            {[
+              { label: 'Nodos', value: nodeCount },
+              { label: 'Relaciones', value: relCount },
+              { label: 'Terminados', value: termCount },
+            ].map((s) => (
+              <div key={s.label} style={{ textAlign: 'center' }}>
+                <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 22, fontWeight: 800, color: '#546E7A' }}>
+                  {s.value}
+                </div>
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#757575', textTransform: 'uppercase', letterSpacing: 1 }}>
+                  {s.label}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {isOwn && (
+        <div className="card" style={{ position: 'relative' }} ref={searchRef}>
+          <div className="card-label">02 // BUSCAR</div>
+          <h2>Buscar perfiles</h2>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar por username..."
+            style={{ ...inputStyle, marginTop: 12 }}
+          />
+          {searchResults.length > 0 && (
+            <div style={{ marginTop: 8, border: '1px solid #2A2A2A', background: '#111' }}>
+              {searchResults.map((u) => (
+                <div
+                  key={u.id}
+                  onClick={() => { navigate(`/profile/${u.id}`); setSearchQuery(''); setSearchResults([]) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                    borderBottom: '1px solid #2A2A2A', cursor: 'pointer',
+                    fontFamily: "'JetBrains Mono', monospace", fontSize: 12,
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(84,110,122,0.08)' }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+                >
+                  <div style={{
+                    width: 28, height: 28, background: '#1a1a1a', border: '1px solid #333',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%',
+                    fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 800, color: '#546E7A', minWidth: 28,
+                  }}>
+                    {u.username.slice(0, 2).toUpperCase()}
+                  </div>
+                  <span style={{ color: '#E0E0E0' }}>{u.username}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {searching && (
+            <div style={{ marginTop: 8, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#555' }}>
+              {'>'} Buscando...
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="card" style={{ position: 'relative' }}>
+        <div className="card-label">{isOwn ? '03' : '02'} // RANKING</div>
+        <h2>Ranking</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 16 }}>
+          <div>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#546E7A', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12, fontWeight: 700 }}>
+              Terminados ({terminated.length})
+            </div>
+            {terminated.length === 0 && (
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#555' }}>Sin nodos terminados</div>
+            )}
+            {terminated.map(renderNodeRow)}
+          </div>
+          <div>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#f9a825', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12, fontWeight: 700 }}>
+              Top Rating
+            </div>
+            {topRated.length === 0 && (
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#555' }}>Sin calificaciones</div>
+            )}
+            {topRated.map(renderNodeRow)}
+          </div>
+        </div>
+      </div>
+
+      {isOwn && (
+        <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+          <button className="btn" onClick={() => setShowModal(true)} style={{ fontSize: 11 }}>Editar perfil</button>
+          <button className="btn btn-danger" onClick={logout} style={{ fontSize: 11 }}>Cerrar sesión</button>
+        </div>
+      )}
+
+      {showModal && (
+        <div onClick={() => setShowModal(false)} style={{
+          position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.85)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div onClick={(e) => e.stopPropagation()} style={{
+            position: 'relative', background: '#111', border: '1px solid #333',
+            padding: '40px 48px', maxWidth: 440, width: '90%',
+          }}>
+            <div className="corner-mark tl" /><div className="corner-mark tr" />
+            <div className="corner-mark bl" /><div className="corner-mark br" />
+            <button onClick={() => setShowModal(false)} style={{
+              position: 'absolute', top: 12, right: 16, background: 'none',
+              border: 'none', color: '#555', cursor: 'pointer', fontSize: 18,
+            }}>×</button>
+
+            <div className="card-label" style={{ top: -10, left: 20 }}>04 // EDITAR</div>
+            <h2 style={{ fontFamily: "'Inter', sans-serif", fontSize: 18, fontWeight: 600, color: '#E0E0E0', marginBottom: 24 }}>Editar perfil</h2>
+
+            <div style={{ marginBottom: 24 }}>
+              <span style={labelStyle}>Foto de perfil (URL)</span>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                {photoUrl && (
+                  <img src={photoUrl} alt="preview" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                    style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: '50%', border: '1px solid #333' }} />
+                )}
+                <input type="text" value={photoInput} onChange={(e) => setPhotoInput(e.target.value)}
+                  placeholder="https://ejemplo.com/foto.jpg" style={{ ...inputStyle, flex: 1, minWidth: 180 }} />
+                <button className="btn" onClick={savePhoto} style={{ fontSize: 11, whiteSpace: 'nowrap' }}>Guardar</button>
+              </div>
+            </div>
+
+            <form onSubmit={handlePasswordChange} style={{ display: 'grid', gap: 12 }}>
+              <span style={labelStyle}>Cambiar contraseña</span>
+              <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Contraseña actual" style={inputStyle} required />
+              <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Nueva contraseña" style={inputStyle} required />
+              <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirmar contraseña" style={inputStyle} required />
+              <div>
+                <button className="btn btn-primary" type="submit" disabled={saving} style={{ fontSize: 11 }}>
+                  {saving ? 'Guardando...' : 'Actualizar contraseña'}
+                </button>
+              </div>
+            </form>
+
+            {msg && (
+              <div style={{ marginTop: 16, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: msg.startsWith('Error') ? '#b71c1c' : '#66bb6a' }}>
+                {'>'} {msg}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

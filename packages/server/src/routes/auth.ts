@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { db } from '../db'
-import { users } from '../db/schema'
-import { eq } from 'drizzle-orm'
+import { users, nodes, relations } from '../db/schema'
+import { eq, ilike, and, sql } from 'drizzle-orm'
 import crypto from 'node:crypto'
 import { hashPassword, verifyPassword, signToken, requireAuth } from '../lib/auth'
 import { getUserId, type AppEnv } from '../lib/types'
@@ -102,6 +102,64 @@ router.get('/me', requireAuth, async (c) => {
   }
   const user = result[0]
   return c.json({ id: user.id, email: user.email, username: user.username, createdAt: user.createdAt })
+})
+
+router.put('/password', requireAuth, async (c) => {
+  const userId = getUserId(c)
+  const { currentPassword, newPassword } = await c.req.json()
+
+  if (!currentPassword || !newPassword) {
+    return c.json({ error: 'Password actual y nuevo password son requeridos' }, 400)
+  }
+  if (typeof newPassword !== 'string' || newPassword.length < 8 || newPassword.length > 200) {
+    return c.json({ error: 'Nuevo password: 8-200 caracteres' }, 400)
+  }
+
+  const result = await db.select().from(users).where(eq(users.id, userId)).limit(1)
+  if (result.length === 0) {
+    return c.json({ error: 'Usuario no encontrado' }, 404)
+  }
+
+  const valid = await verifyPassword(currentPassword, result[0].passwordHash)
+  if (!valid) {
+    return c.json({ error: 'Password actual incorrecto' }, 401)
+  }
+
+  const passwordHash = await hashPassword(newPassword)
+  await db.update(users).set({ passwordHash }).where(eq(users.id, userId))
+  return c.json({ ok: true })
+})
+
+router.get('/search', requireAuth, async (c) => {
+  const q = c.req.query('q')
+  if (!q || q.trim().length === 0) return c.json([])
+  const results = await db.select({ id: users.id, username: users.username, createdAt: users.createdAt })
+    .from(users)
+    .where(ilike(users.username, `%${q.trim()}%`))
+    .limit(10)
+  return c.json(results)
+})
+
+router.get('/profile/:id', requireAuth, async (c) => {
+  const id = c.req.param('id') as string
+  const [profileUser] = await db.select({ id: users.id, username: users.username, createdAt: users.createdAt })
+    .from(users).where(eq(users.id, id)).limit(1)
+  if (!profileUser) return c.json({ error: 'Usuario no encontrado' }, 404)
+
+  const userNodes = await db.select().from(nodes).where(eq(nodes.userId, id))
+  const userRelations = await db.select({ count: sql<number>`count(*)` }).from(relations).where(eq(relations.userId, id))
+  const terminated = userNodes.filter((n) => n.status === 'terminado')
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+  const topRated = userNodes.filter((n) => n.rating != null).sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 10)
+
+  return c.json({
+    ...profileUser,
+    nodeCount: userNodes.length,
+    relationCount: userRelations[0]?.count ?? 0,
+    terminatedCount: terminated.length,
+    terminated: terminated.slice(0, 20).map((n) => ({ id: n.id, title: n.title, type: n.type, updatedAt: n.updatedAt })),
+    topRated: topRated.map((n) => ({ id: n.id, title: n.title, type: n.type, rating: n.rating })),
+  })
 })
 
 export default router
