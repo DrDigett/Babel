@@ -65,6 +65,11 @@ if (config.nodeEnv === 'production') {
       }
     },
   }))
+
+  app.get('*', async (c) => {
+    const html = (await readFile(join(clientDist, 'index.html'))).toString()
+    return c.html(html)
+  })
 }
 
 async function bootstrap() {
