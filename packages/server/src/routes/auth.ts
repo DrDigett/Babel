@@ -65,7 +65,7 @@ router.post('/register', async (c) => {
   await db.insert(users).values({ id, email, username, passwordHash, createdAt: now })
 
   const token = signToken(id)
-  return c.json({ token, user: { id, email, username, createdAt: now } }, 201)
+  return c.json({ token, user: { id, email, username, profilePhotoUrl: null, createdAt: now } }, 201)
 })
 
 router.post('/login', async (c) => {
@@ -91,7 +91,7 @@ router.post('/login', async (c) => {
   }
 
   const token = signToken(user.id)
-  return c.json({ token, user: { id: user.id, email: user.email, username: user.username, createdAt: user.createdAt } })
+  return c.json({ token, user: { id: user.id, email: user.email, username: user.username, profilePhotoUrl: user.profilePhotoUrl, createdAt: user.createdAt } })
 })
 
 router.get('/me', requireAuth, async (c) => {
@@ -101,7 +101,7 @@ router.get('/me', requireAuth, async (c) => {
     return c.json({ error: 'Usuario no encontrado' }, 404)
   }
   const user = result[0]
-  return c.json({ id: user.id, email: user.email, username: user.username, createdAt: user.createdAt })
+  return c.json({ id: user.id, email: user.email, username: user.username, profilePhotoUrl: user.profilePhotoUrl, createdAt: user.createdAt })
 })
 
 router.put('/password', requireAuth, async (c) => {
@@ -130,10 +130,22 @@ router.put('/password', requireAuth, async (c) => {
   return c.json({ ok: true })
 })
 
+router.put('/profile-photo', requireAuth, async (c) => {
+  const userId = getUserId(c)
+  const { profilePhotoUrl } = await c.req.json()
+
+  if (profilePhotoUrl !== null && (typeof profilePhotoUrl !== 'string' || profilePhotoUrl.length > 2000)) {
+    return c.json({ error: 'URL inválida' }, 400)
+  }
+
+  await db.update(users).set({ profilePhotoUrl: profilePhotoUrl || null }).where(eq(users.id, userId))
+  return c.json({ profilePhotoUrl: profilePhotoUrl || null })
+})
+
 router.get('/search', requireAuth, async (c) => {
   const q = c.req.query('q')
   if (!q || q.trim().length === 0) return c.json([])
-  const results = await db.select({ id: users.id, username: users.username, createdAt: users.createdAt })
+  const results = await db.select({ id: users.id, username: users.username, profilePhotoUrl: users.profilePhotoUrl, createdAt: users.createdAt })
     .from(users)
     .where(ilike(users.username, `%${q.trim()}%`))
     .limit(10)
@@ -142,7 +154,7 @@ router.get('/search', requireAuth, async (c) => {
 
 router.get('/profile/:id', requireAuth, async (c) => {
   const id = c.req.param('id') as string
-  const [profileUser] = await db.select({ id: users.id, username: users.username, createdAt: users.createdAt })
+  const [profileUser] = await db.select({ id: users.id, username: users.username, profilePhotoUrl: users.profilePhotoUrl, createdAt: users.createdAt })
     .from(users).where(eq(users.id, id)).limit(1)
   if (!profileUser) return c.json({ error: 'Usuario no encontrado' }, 404)
 

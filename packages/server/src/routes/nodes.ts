@@ -106,7 +106,7 @@ router.put('/:id', async (c) => {
   if (body.link !== undefined) update.link = body.link?.slice(0, 2000) ?? null
   if (body.rating !== undefined) update.rating = body.rating
 
-  await db.update(nodes).set(update).where(eq(nodes.id, id))
+  await db.update(nodes).set(update).where(and(eq(nodes.id, id), eq(nodes.userId, userId)))
   const [updated] = await db.select().from(nodes).where(eq(nodes.id, id)).limit(1)
   return c.json(updated)
 })
@@ -115,7 +115,7 @@ router.delete('/:id', async (c) => {
   const userId = getUserId(c)
   const id = c.req.param('id')
   const [deleted] = await db.select({ order: nodes.order }).from(nodes).where(and(eq(nodes.id, id), eq(nodes.userId, userId))).limit(1)
-  await db.delete(nodes).where(eq(nodes.id, id))
+  await db.delete(nodes).where(and(eq(nodes.id, id), eq(nodes.userId, userId)))
   if (deleted) {
     const remaining = await db.select({ id: nodes.id }).from(nodes).where(and(sql`${nodes.order} > ${deleted.order}`, eq(nodes.userId, userId))).orderBy(asc(nodes.order))
     for (let i = 0; i < remaining.length; i++) {

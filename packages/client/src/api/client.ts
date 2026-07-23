@@ -40,7 +40,9 @@ export const api = {
     me: () => request<User>('/auth/me'),
     updatePassword: (currentPassword: string, newPassword: string) =>
       request<{ ok: boolean }>('/auth/password', { method: 'PUT', body: JSON.stringify({ currentPassword, newPassword }) }),
-    searchUsers: (q: string) => request<{ id: string; username: string; createdAt: string }[]>(`/auth/search?q=${encodeURIComponent(q)}`),
+    updateProfilePhoto: (profilePhotoUrl: string | null) =>
+      request<{ profilePhotoUrl: string | null }>('/auth/profile-photo', { method: 'PUT', body: JSON.stringify({ profilePhotoUrl }) }),
+    searchUsers: (q: string) => request<{ id: string; username: string; profilePhotoUrl: string | null; createdAt: string }[]>(`/auth/search?q=${encodeURIComponent(q)}`),
     getProfile: (id: string) => request<any>(`/auth/profile/${id}`),
   },
   nodes: {

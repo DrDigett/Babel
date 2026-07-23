@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import dns from 'node:dns'
 import { db } from '../db'
 import { nodes, relations } from '../db/schema'
 import { Hono } from 'hono'
@@ -16,6 +17,36 @@ const groq = new OpenAI({
 
 const router = new Hono<AppEnv>()
 
+function isPrivateIp(ip: string): boolean {
+  return /^127\./.test(ip)
+    || /^10\./.test(ip)
+    || /^172\.(1[6-9]|2\d|3[01])\./.test(ip)
+    || /^192\.168\./.test(ip)
+    || /^169\.254\./.test(ip)
+    || ip === '::1'
+    || /^fc00:/i.test(ip)
+    || /^fe80:/i.test(ip)
+}
+
+function isPublicUrl(urlString: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    try {
+      const url = new URL(urlString)
+      if (url.protocol !== 'https:') return resolve(false)
+      const hostname = url.hostname
+      if (hostname === 'localhost' || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) return resolve(false)
+      dns.lookup(hostname, { all: true }, (err, addresses) => {
+        if (err || !addresses?.length) return resolve(false)
+        resolve(addresses.every(a => !isPrivateIp(a.address)))
+      })
+    } catch {
+      resolve(false)
+    }
+  })
+}
+
+router.use('*', requireAuth)
+
 router.post('/classify', async (c) => {
   const { text, typeHint } = await c.req.json<{ text: string; typeHint?: string }>()
   if (!text || typeof text !== 'string' || text.trim().length === 0) {
@@ -29,7 +60,7 @@ router.post('/classify', async (c) => {
   return c.json(result)
 })
 
-router.post('/smart-add', requireAuth, async (c) => {
+router.post('/smart-add', async (c) => {
   const userId = getUserId(c)
   const { text, typeHint } = await c.req.json<{ text: string; typeHint?: string }>()
   if (!text || typeof text !== 'string' || text.trim().length === 0) {
@@ -89,7 +120,7 @@ router.post('/smart-add', requireAuth, async (c) => {
   }, 201)
 })
 
-router.post('/reevaluate/:id', requireAuth, async (c) => {
+router.post('/reevaluate/:id', async (c) => {
   const userId = getUserId(c)
   const id = c.req.param('id') as string
   const [node] = await db.select().from(nodes).where(and(eq(nodes.id, id), eq(nodes.userId, userId))).limit(1)
@@ -177,6 +208,10 @@ router.post('/research', async (c) => {
   }
   if (!url.startsWith('https://')) {
     return c.json({ error: 'only HTTPS links are accepted' }, 400)
+  }
+
+  if (!await isPublicUrl(url)) {
+    return c.json({ error: 'URL no permitida' }, 400)
   }
 
   let html: string

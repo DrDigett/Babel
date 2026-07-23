@@ -23,3 +23,7 @@ export const config = {
   jwtSecret: optional('JWT_SECRET', 'dev-secret-change-in-production'),
   nodeEnv: optional('NODE_ENV', 'development'),
 }
+
+if (config.nodeEnv === 'production' && config.jwtSecret === 'dev-secret-change-in-production') {
+  throw new Error('JWT_SECRET must be set in production. Generate one: openssl rand -base64 32')
+}

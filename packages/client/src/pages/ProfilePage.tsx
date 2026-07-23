@@ -9,18 +9,18 @@ const TYPE_COLORS: Record<string, string> = {
   video: '#9b59b6', curso: '#9b59b6', videojuego: '#e67e22',
 }
 
-interface SearchUser { id: string; username: string; createdAt: string }
+interface SearchUser { id: string; username: string; profilePhotoUrl: string | null; createdAt: string }
 
 export default function ProfilePage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user, logout, updateUser } = useAuth()
   const isOwn = !id || id === user?.id
 
   const [nodes, setNodes] = useState<BabelNode[]>([])
   const [relationsCount, setRelationsCount] = useState(0)
-  const photoKey = isOwn ? `profilePhoto_${user?.id}` : `profilePhoto_${id}`
-  const [photoUrl, setPhotoUrl] = useState(() => localStorage.getItem(photoKey) ?? '')
+  const [profile, setProfile] = useState<any>(null)
+  const photoUrl = isOwn ? (user?.profilePhotoUrl ?? '') : (profile?.profilePhotoUrl ?? '')
   const [photoInput, setPhotoInput] = useState(photoUrl)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -36,17 +36,12 @@ export default function ProfilePage() {
   const searchTimer = useRef<ReturnType<typeof setTimeout>>()
   const searchRef = useRef<HTMLDivElement>(null)
 
-  // Other user's profile data
-  const [profile, setProfile] = useState<any>(null)
-
   useEffect(() => {
     if (isOwn) {
-      setPhotoUrl(localStorage.getItem(`profilePhoto_${user?.id}`) ?? '')
       Promise.all([api.nodes.list(), api.relations.list()])
         .then(([n, r]) => { setNodes(n); setRelationsCount(r.length) })
         .catch(() => {})
     } else if (id) {
-      setPhotoUrl(localStorage.getItem(`profilePhoto_${id}`) ?? '')
       api.auth.getProfile(id).then(setProfile).catch(() => setProfile(null))
     }
   }, [id, isOwn, user?.id])
@@ -90,10 +85,14 @@ export default function ProfilePage() {
   const relCount = isOwn ? relationsCount : (profile?.relationCount ?? 0)
   const termCount = isOwn ? terminated.length : (profile?.terminatedCount ?? 0)
 
-  function savePhoto() {
-    setPhotoUrl(photoInput)
-    localStorage.setItem(photoKey, photoInput)
-    setMsg('Foto actualizada')
+  async function savePhoto() {
+    setSaving(true)
+    try {
+      const res = await api.auth.updateProfilePhoto(photoInput || null)
+      if (isOwn) updateUser({ profilePhotoUrl: res.profilePhotoUrl })
+      setMsg('Foto actualizada')
+    } catch (e) { setMsg(`Error: ${e instanceof Error ? e.message : 'desconocido'}`) }
+    setSaving(false)
   }
 
   async function handlePasswordChange(e: React.FormEvent) {
@@ -257,8 +256,11 @@ export default function ProfilePage() {
                     width: 28, height: 28, background: '#1a1a1a', border: '1px solid #333',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%',
                     fontFamily: "'Inter', sans-serif", fontSize: 10, fontWeight: 800, color: '#546E7A', minWidth: 28,
+                    overflow: 'hidden',
                   }}>
-                    {u.username.slice(0, 2).toUpperCase()}
+                    {u.profilePhotoUrl
+                      ? <img src={u.profilePhotoUrl} alt="" style={{ width: 28, height: 28, objectFit: 'cover' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                      : u.username.slice(0, 2).toUpperCase()}
                   </div>
                   <span style={{ color: '#E0E0E0' }}>{u.username}</span>
                 </div>

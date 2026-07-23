@@ -101,7 +101,7 @@ router.put('/:id', async (c) => {
   if (body.name !== undefined) update.name = body.name.trim().slice(0, 200)
   if (body.description !== undefined) update.description = body.description?.slice(0, 2000) ?? null
 
-  await db.update(lists).set(update).where(eq(lists.id, id))
+  await db.update(lists).set(update).where(and(eq(lists.id, id), eq(lists.userId, userId)))
   const [updated] = await db.select().from(lists).where(eq(lists.id, id)).limit(1)
   return c.json(updated)
 })
@@ -112,7 +112,7 @@ router.delete('/:id', async (c) => {
   const [existing] = await db.select({ id: lists.id }).from(lists).where(and(eq(lists.id, id), eq(lists.userId, userId))).limit(1)
   if (!existing) return c.json({ error: 'not found' }, 404)
 
-  await db.delete(lists).where(eq(lists.id, id))
+  await db.delete(lists).where(and(eq(lists.id, id), eq(lists.userId, userId)))
   return c.json({ success: true })
 })
 
