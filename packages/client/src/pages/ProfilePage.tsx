@@ -18,7 +18,7 @@ export default function ProfilePage() {
   const isOwn = !id || id === user?.id
 
   const [nodes, setNodes] = useState<BabelNode[]>([])
-  const [relationsCount, setRelationsCount] = useState(0)
+  const [relations, setRelations] = useState<any[]>([])
   const [profile, setProfile] = useState<any>(null)
   const photoUrl = isOwn ? (user?.profilePhotoUrl ?? '') : (profile?.profilePhotoUrl ?? '')
   const [photoInput, setPhotoInput] = useState(photoUrl)
@@ -29,6 +29,8 @@ export default function ProfilePage() {
   const [msg, setMsg] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
+  const [showAllTerminated, setShowAllTerminated] = useState(false)
+  const [showAllPending, setShowAllPending] = useState(false)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchUser[]>([])
@@ -39,7 +41,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (isOwn) {
       Promise.all([api.nodes.list(), api.relations.list()])
-        .then(([n, r]) => { setNodes(n); setRelationsCount(r.length) })
+        .then(([n, r]) => { setNodes(n); setRelations(r) })
         .catch(() => {})
     } else if (id) {
       api.auth.getProfile(id).then(setProfile).catch(() => setProfile(null))
@@ -78,11 +80,16 @@ export default function ProfilePage() {
     ? nodes.filter((n) => n.status === 'terminado').sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     : (profile?.terminated ?? [])
   const topRated = isOwn
-    ? [...nodes].filter((n) => n.rating != null).sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 10)
+    ? [...nodes].filter((n) => n.rating != null).sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 4)
     : (profile?.topRated ?? [])
 
+  const pending = isOwn
+    ? nodes.filter((n) => n.status === 'pendiente').sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    : []
+  const recentPending = showAllPending ? pending : pending.slice(0, 6)
+
   const nodeCount = isOwn ? nodes.length : (profile?.nodeCount ?? 0)
-  const relCount = isOwn ? relationsCount : (profile?.relationCount ?? 0)
+  const relCount = isOwn ? relations.length : (profile?.relationCount ?? 0)
   const termCount = isOwn ? terminated.length : (profile?.terminatedCount ?? 0)
 
   async function savePhoto() {
@@ -147,6 +154,21 @@ export default function ProfilePage() {
       </div>
     )
   }
+
+  function timeAgo(dateStr: string) {
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return 'ahora'
+    if (mins < 60) return `${mins}m`
+    const hrs = Math.floor(mins / 60)
+    if (hrs < 24) return `${hrs}h`
+    const days = Math.floor(hrs / 24)
+    if (days < 30) return `${days}d`
+    const months = Math.floor(days / 30)
+    return `${months}mes`
+  }
+
+  const recentTerminated = showAllTerminated ? terminated : terminated.slice(0, 5)
 
   return (
     <div>
@@ -277,28 +299,239 @@ export default function ProfilePage() {
 
       <div className="card" style={{ position: 'relative' }}>
         <div className="card-label">{isOwn ? '03' : '02'} // RANKING</div>
-        <h2>Ranking</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 16 }}>
-          <div>
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#546E7A', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12, fontWeight: 700 }}>
-              Terminados ({terminated.length})
+        <h2>Top Rating</h2>
+        <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 0 }}>
+          {topRated.length === 0 && (
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#555' }}>Sin calificaciones</div>
+          )}
+
+          {topRated[0] && (
+            <div
+              key={topRated[0].id}
+              onClick={() => navigate(`/node/${topRated[0].id}`)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px',
+                background: 'linear-gradient(135deg, rgba(249,168,37,0.06) 0%, rgba(249,168,37,0.02) 100%)',
+                border: '1px solid rgba(249,168,37,0.25)',
+                borderBottom: 'none', cursor: 'pointer',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'linear-gradient(135deg, rgba(249,168,37,0.10) 0%, rgba(249,168,37,0.04) 100%)' }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'linear-gradient(135deg, rgba(249,168,37,0.06) 0%, rgba(249,168,37,0.02) 100%)' }}
+            >
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, color: '#f9a825', letterSpacing: 1, minWidth: 20 }}>
+                #1
+              </div>
+              <div style={{
+                fontFamily: "'Inter', sans-serif", fontSize: 32, fontWeight: 800, color: '#f9a825',
+                minWidth: 44, textAlign: 'center', lineHeight: 1,
+              }}>
+                {topRated[0].rating}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontFamily: "'Inter', sans-serif", fontSize: 15, fontWeight: 600, color: '#CFD8DC',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {topRated[0].title}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                  <span style={{
+                    fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700,
+                    color: TYPE_COLORS[topRated[0].type] ?? '#757575', letterSpacing: 0.5,
+                  }}>
+                    {topRated[0].type.toUpperCase()}
+                  </span>
+                </div>
+              </div>
+              <div style={{
+                width: 60, height: 4, background: 'rgba(249,168,37,0.12)', borderRadius: 2, overflow: 'hidden',
+              }}>
+                <div style={{
+                  width: `${((topRated[0].rating ?? 0) / 5) * 100}%`, height: '100%',
+                  background: 'linear-gradient(90deg, #f9a825, #ffca28)', borderRadius: 2,
+                }} />
+              </div>
             </div>
-            {terminated.length === 0 && (
-              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#555' }}>Sin nodos terminados</div>
-            )}
-            {terminated.map(renderNodeRow)}
-          </div>
-          <div>
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#f9a825', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12, fontWeight: 700 }}>
-              Top Rating
-            </div>
-            {topRated.length === 0 && (
-              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#555' }}>Sin calificaciones</div>
-            )}
-            {topRated.map(renderNodeRow)}
-          </div>
+          )}
+
+          {topRated.slice(1).map((n: { id: string; title: string; type: string; rating?: number | null }, i: number) => {
+            const rank = i + 2
+            return (
+              <div
+                key={n.id}
+                onClick={() => navigate(`/node/${n.id}`)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 14, padding: '10px 20px',
+                  background: 'rgba(17,17,17,0.5)',
+                  border: '1px solid #2A2A2A',
+                  borderTop: rank === 2 ? '1px solid #2A2A2A' : 'none',
+                  cursor: 'pointer', transition: 'background 0.15s',
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(84,110,122,0.08)' }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(17,17,17,0.5)' }}
+              >
+                <div style={{
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: 16, fontWeight: 700, color: '#546E7A',
+                  minWidth: 28, textAlign: 'center',
+                }}>
+                  0{rank}
+                </div>
+                <div style={{
+                  fontFamily: "'Inter', sans-serif", fontSize: 18, fontWeight: 800, color: '#f9a825',
+                  minWidth: 32, textAlign: 'center', lineHeight: 1, opacity: 0.7 + (0.3 * (1 - i * 0.3)),
+                }}>
+                  {n.rating}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#E0E0E0',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {n.title}
+                  </div>
+                </div>
+                <span style={{
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700,
+                  color: TYPE_COLORS[n.type] ?? '#757575', letterSpacing: 0.5,
+                }}>
+                  {n.type.slice(0, 3).toUpperCase()}
+                </span>
+              </div>
+            )
+          })}
         </div>
       </div>
+
+      {recentTerminated.length > 0 && (
+        <div className="card" style={{ position: 'relative' }}>
+          <div className="card-label">{isOwn ? '04' : '03'} // RECIENTES</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h2>Recién terminados</h2>
+            {terminated.length > 5 && (
+              <button
+                className="btn"
+                onClick={() => setShowAllTerminated(!showAllTerminated)}
+                style={{ fontSize: 10, padding: '4px 10px' }}
+              >
+                {showAllTerminated ? 'Ver menos' : `Ver todos (${terminated.length})`}
+              </button>
+            )}
+          </div>
+          <div style={showAllTerminated ? {
+            display: 'flex', gap: 12, marginTop: 14,
+            overflowX: 'auto', paddingBottom: 4,
+          } : {
+            display: 'grid',
+            gap: 12, marginTop: 14,
+          }}
+            className={showAllTerminated ? 'recent-scroll' : 'recent-grid'}
+          >
+            {recentTerminated.map((n: { id: string; title: string; type: string; updatedAt: string }) => (
+              <div
+                key={n.id}
+                onClick={() => navigate(`/node/${n.id}`)}
+                style={{
+                  minWidth: showAllTerminated ? 180 : undefined,
+                  flex: showAllTerminated ? '0 0 auto' : undefined,
+                  background: 'rgba(17,17,17,0.6)', border: '1px solid #2A2A2A',
+                  padding: '12px 14px', cursor: 'pointer', transition: 'border-color 0.15s',
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = '#546E7A' }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = '#2A2A2A' }}
+              >
+                <div style={{
+                  fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600, color: '#E0E0E0',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 8,
+                }}>
+                  {n.title}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{
+                    fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700,
+                    color: TYPE_COLORS[n.type] ?? '#757575', letterSpacing: 0.5,
+                  }}>
+                    {n.type.slice(0, 3).toUpperCase()}
+                  </span>
+                  <span style={{
+                    fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#546E7A',
+                  }}>
+                    {timeAgo(n.updatedAt)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {isOwn && pending.length > 0 && (
+        <div className="card" style={{ position: 'relative' }}>
+          <div className="card-label">05 // PENDIENTES</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h2>Cola de pendientes</h2>
+            {pending.length > 6 && (
+              <button
+                className="btn"
+                onClick={() => setShowAllPending(!showAllPending)}
+                style={{ fontSize: 10, padding: '4px 10px' }}
+              >
+                {showAllPending ? 'Ver menos' : `Ver todos (${pending.length})`}
+              </button>
+            )}
+          </div>
+          <div style={showAllPending ? {
+            display: 'flex', gap: 12, marginTop: 14,
+            overflowX: 'auto', paddingBottom: 4,
+          } : {
+            display: 'grid',
+            gap: 12, marginTop: 14,
+          }}
+            className={showAllPending ? 'recent-scroll' : 'recent-grid'}
+          >
+            {recentPending.map((n: { id: string; title: string; type: string; createdAt: string }) => (
+              <div
+                key={n.id}
+                onClick={() => navigate(`/node/${n.id}`)}
+                style={{
+                  minWidth: showAllPending ? 180 : undefined,
+                  flex: showAllPending ? '0 0 auto' : undefined,
+                  background: 'rgba(17,17,17,0.6)',
+                  border: '1px solid #2A2A2A',
+                  borderLeft: `3px solid ${TYPE_COLORS[n.type] ?? '#757575'}`,
+                  padding: '12px 14px', cursor: 'pointer',
+                  transition: 'border-color 0.15s, background 0.15s',
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = '#546E7A' }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = '#2A2A2A' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <span className="pending-dot" />
+                  <span style={{
+                    fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600, color: '#E0E0E0',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {n.title}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{
+                    fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700,
+                    color: TYPE_COLORS[n.type] ?? '#757575', letterSpacing: 0.5,
+                  }}>
+                    {n.type.slice(0, 3).toUpperCase()}
+                  </span>
+                  <span style={{
+                    fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#546E7A',
+                  }}>
+                    hace {timeAgo(n.createdAt)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {isOwn && (
         <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>

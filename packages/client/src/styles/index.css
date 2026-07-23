@@ -495,6 +495,26 @@ select.btn option {
   }
 }
 
+/* Recent terminated grid */
+.recent-grid {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+.recent-scroll::-webkit-scrollbar { height: 6px; }
+.recent-scroll::-webkit-scrollbar-track { background: transparent; }
+.recent-scroll::-webkit-scrollbar-thumb { background: var(--line-grid); border-radius: 3px; }
+.recent-scroll::-webkit-scrollbar-thumb:hover { background: var(--accent-muted); }
+
+/* Pending pulse dot */
+@keyframes pending-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+.pending-dot {
+  width: 6px; height: 6px; min-width: 6px;
+  border-radius: 50%; background: var(--accent-muted);
+  animation: pending-pulse 2s ease-in-out infinite;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

@@ -162,7 +162,7 @@ router.get('/profile/:id', requireAuth, async (c) => {
   const userRelations = await db.select({ count: sql<number>`count(*)` }).from(relations).where(eq(relations.userId, id))
   const terminated = userNodes.filter((n) => n.status === 'terminado')
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-  const topRated = userNodes.filter((n) => n.rating != null).sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 10)
+  const topRated = userNodes.filter((n) => n.rating != null).sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 4)
 
   return c.json({
     ...profileUser,
