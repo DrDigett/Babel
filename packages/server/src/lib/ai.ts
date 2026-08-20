@@ -4,6 +4,7 @@
 // Upgrade path: openai/gpt-oss-120b for better quality (same limits, same SDK).
 import type { NodeType, RelationType } from '@babel-plus/shared'
 import OpenAI from 'openai'
+import { eq } from 'drizzle-orm'
 import { config } from './config'
 import { db } from '../db'
 import { nodes } from '../db/schema'
@@ -35,8 +36,10 @@ interface AIResult {
   relations: SuggestedRelation[]
 }
 
-export async function classifyAndSuggest(input: string, typeHint?: string): Promise<AIResult> {
-  const existingNodes = await db.select({ title: nodes.title, type: nodes.type, description: nodes.description, tags: nodes.tags }).from(nodes)
+export async function classifyAndSuggest(input: string, typeHint?: string, userId?: string): Promise<AIResult> {
+  const existingNodes = userId
+    ? await db.select({ title: nodes.title, type: nodes.type, description: nodes.description, tags: nodes.tags }).from(nodes).where(eq(nodes.userId, userId))
+    : await db.select({ title: nodes.title, type: nodes.type, description: nodes.description, tags: nodes.tags }).from(nodes)
 
   const nodeList = existingNodes.map(n => {
     const parts = [`  - "${n.title}" (${n.type})`]

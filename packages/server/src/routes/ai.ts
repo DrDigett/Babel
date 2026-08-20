@@ -48,6 +48,7 @@ function isPublicUrl(urlString: string): Promise<boolean> {
 router.use('*', requireAuth)
 
 router.post('/classify', async (c) => {
+  const userId = getUserId(c)
   const { text, typeHint } = await c.req.json<{ text: string; typeHint?: string }>()
   if (!text || typeof text !== 'string' || text.trim().length === 0) {
     return c.json({ error: 'text is required' }, 400)
@@ -56,7 +57,7 @@ router.post('/classify', async (c) => {
     return c.json({ error: 'text too long (max 10000)' }, 400)
   }
 
-  const result = await classifyAndSuggest(text.trim().slice(0, 10000), typeHint)
+  const result = await classifyAndSuggest(text.trim().slice(0, 10000), typeHint, userId)
   return c.json(result)
 })
 
@@ -70,7 +71,7 @@ router.post('/smart-add', async (c) => {
     return c.json({ error: 'text too long (max 10000)' }, 400)
   }
 
-  const result = await classifyAndSuggest(text, typeHint)
+  const result = await classifyAndSuggest(text, typeHint, userId)
   const now = new Date().toISOString()
 
   const nodeId = crypto.randomUUID()
@@ -135,7 +136,7 @@ router.post('/reevaluate/:id', async (c) => {
   }
   const input = parts.join('. ')
 
-  const result = await classifyAndSuggest(input, node.type)
+  const result = await classifyAndSuggest(input, node.type, userId)
 
   const existingOut = await db.select().from(relations).where(and(eq(relations.sourceId, id), eq(relations.userId, userId)))
   const existingIn = await db.select().from(relations).where(and(eq(relations.targetId, id), eq(relations.userId, userId)))
@@ -173,20 +174,14 @@ router.post('/reevaluate/:id', async (c) => {
   }
 
   for (const existing of existingOut) {
-    const stillSuggested = result.relations.some(s => {
-      const match = existingOut.find(r => r.id === existing.id)
-      return match && s.type === existing.type
-    })
-    if (!stillSuggested) {
-      const targetNode = await db.select({ title: nodes.title }).from(nodes).where(eq(nodes.id, existing.targetId)).limit(1)
-      const targetTitle = targetNode[0]?.title ?? existing.targetId
-      const wasInSuggested = result.relations.some(
-        s => s.type === existing.type && sql`LOWER(${s.targetTitle}) = LOWER(${targetTitle})`
-      )
-      if (!wasInSuggested) {
-        await db.delete(relations).where(eq(relations.id, existing.id))
-        removed.push(existing.targetId)
-      }
+    const [targetNode] = await db.select({ title: nodes.title }).from(nodes).where(and(eq(nodes.id, existing.targetId), eq(nodes.userId, userId))).limit(1)
+    const targetTitle = targetNode?.title ?? existing.targetId
+    const wasInSuggested = result.relations.some(
+      s => s.type === existing.type && s.targetTitle.trim().toLowerCase() === targetTitle.trim().toLowerCase()
+    )
+    if (!wasInSuggested) {
+      await db.delete(relations).where(and(eq(relations.id, existing.id), eq(relations.userId, userId)))
+      removed.push(existing.targetId)
     }
   }
 

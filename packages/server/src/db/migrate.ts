@@ -3,6 +3,17 @@ import { db } from './index'
 
 export async function migrate() {
   await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      username TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      profile_photo_url TEXT,
+      created_at TEXT NOT NULL
+    )
+  `)
+
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS nodes (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
@@ -14,9 +25,19 @@ export async function migrate() {
       year INTEGER,
       link TEXT,
       rating INTEGER,
+      "order" INTEGER NOT NULL DEFAULT 0,
+      user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )
+  `)
+
+  await db.execute(sql`
+    ALTER TABLE nodes ADD COLUMN IF NOT EXISTS "order" INTEGER NOT NULL DEFAULT 0
+  `)
+
+  await db.execute(sql`
+    ALTER TABLE nodes ADD COLUMN IF NOT EXISTS user_id TEXT REFERENCES users(id) ON DELETE SET NULL
   `)
 
   await db.execute(sql`
@@ -26,8 +47,13 @@ export async function migrate() {
       target_id TEXT NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
       type TEXT NOT NULL,
       weight REAL NOT NULL DEFAULT 1.0,
+      user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
       created_at TEXT NOT NULL
     )
+  `)
+
+  await db.execute(sql`
+    ALTER TABLE relations ADD COLUMN IF NOT EXISTS user_id TEXT REFERENCES users(id) ON DELETE SET NULL
   `)
 
   await db.execute(sql`
@@ -43,9 +69,14 @@ export async function migrate() {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       description TEXT,
+      user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )
+  `)
+
+  await db.execute(sql`
+    ALTER TABLE lists ADD COLUMN IF NOT EXISTS user_id TEXT REFERENCES users(id) ON DELETE SET NULL
   `)
 
   await db.execute(sql`
