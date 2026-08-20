@@ -11,7 +11,8 @@
     "build:server": "npm run build -w @babel-plus/server",
     "start": "npm run start -w @babel-plus/server",
     "db:migrate": "npm run db:migrate -w @babel-plus/server",
-    "db:seed": "npm run db:seed -w @babel-plus/server"
+    "db:seed": "npm run db:seed -w @babel-plus/server",
+    "db:reevaluate": "npm run db:reevaluate -w @babel-plus/server"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

@@ -63,6 +63,7 @@ export const api = {
     classify: (text: string, typeHint?: string) => request<any>('/ai/classify', { method: 'POST', body: JSON.stringify({ text, typeHint }) }),
     smartAdd: (text: string, typeHint?: string) => request<any>('/ai/smart-add', { method: 'POST', body: JSON.stringify({ text, typeHint }) }),
     reevaluate: (nodeId: string) => request<any>(`/ai/reevaluate/${nodeId}`, { method: 'POST' }),
+    reevaluateAll: () => request<any>('/ai/reevaluate-all', { method: 'POST' }),
     research: (url: string) => request<any>('/ai/research', { method: 'POST', body: JSON.stringify({ url }) }),
   },
   lists: {

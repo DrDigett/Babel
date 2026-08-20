@@ -4,7 +4,7 @@ import { db } from '../db'
 import { nodes, relations } from '../db/schema'
 import { Hono } from 'hono'
 import { eq, sql, and } from 'drizzle-orm'
-import { classifyAndSuggest } from '../lib/ai'
+import { classifyAndSuggest, reevaluateNode, reevaluateAllNodes } from '../lib/ai'
 import { requireAuth } from '../lib/auth'
 import { getUserId, type AppEnv } from '../lib/types'
 import OpenAI from 'openai'
@@ -124,76 +124,23 @@ router.post('/smart-add', async (c) => {
 router.post('/reevaluate/:id', async (c) => {
   const userId = getUserId(c)
   const id = c.req.param('id') as string
-  const [node] = await db.select().from(nodes).where(and(eq(nodes.id, id), eq(nodes.userId, userId))).limit(1)
-  if (!node) return c.json({ error: 'node not found' }, 404)
-
-  const parts = [node.title]
-  if (node.author) parts.push(`Autor: ${node.author}`)
-  if (node.year) parts.push(`Año: ${node.year}`)
-  if (node.description) parts.push(node.description)
-  if (node.tags) {
-    try { parts.push(`Tags: ${JSON.parse(node.tags).join(', ')}`) } catch {}
+  try {
+    const result = await reevaluateNode(id, userId)
+    return c.json(result)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error'
+    return c.json({ error: msg }, msg === 'Node not found' ? 404 : 500)
   }
-  const input = parts.join('. ')
+})
 
-  const result = await classifyAndSuggest(input, node.type, userId)
-
-  const existingOut = await db.select().from(relations).where(and(eq(relations.sourceId, id), eq(relations.userId, userId)))
-  const existingIn = await db.select().from(relations).where(and(eq(relations.targetId, id), eq(relations.userId, userId)))
-
-  const now = new Date().toISOString()
-  const added: string[] = []
-  const kept: string[] = []
-  const removed: string[] = []
-
-  for (const suggested of result.relations) {
-    const [target] = await db
-      .select({ id: nodes.id })
-      .from(nodes)
-      .where(and(sql`LOWER(${nodes.title}) = LOWER(${suggested.targetTitle})`, eq(nodes.userId, userId)))
-      .limit(1)
-    if (!target) continue
-
-    const alreadyExists = existingOut.some(
-      r => r.targetId === target.id && r.type === suggested.type,
-    )
-    if (alreadyExists) {
-      kept.push(target.id)
-    } else {
-      await db.insert(relations).values({
-        id: crypto.randomUUID(),
-        sourceId: id,
-        targetId: target.id,
-        type: suggested.type,
-        weight: suggested.weight ?? 1.0,
-        userId,
-        createdAt: now,
-      })
-      added.push(target.id)
-    }
+router.post('/reevaluate-all', async (c) => {
+  const userId = getUserId(c)
+  try {
+    const summary = await reevaluateAllNodes(userId)
+    return c.json(summary)
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : 'Error reevaluating nodes' }, 500)
   }
-
-  for (const existing of existingOut) {
-    const [targetNode] = await db.select({ title: nodes.title }).from(nodes).where(and(eq(nodes.id, existing.targetId), eq(nodes.userId, userId))).limit(1)
-    const targetTitle = targetNode?.title ?? existing.targetId
-    const wasInSuggested = result.relations.some(
-      s => s.type === existing.type && s.targetTitle.trim().toLowerCase() === targetTitle.trim().toLowerCase()
-    )
-    if (!wasInSuggested) {
-      await db.delete(relations).where(and(eq(relations.id, existing.id), eq(relations.userId, userId)))
-      removed.push(existing.targetId)
-    }
-  }
-
-  const updatedOut = await db.select().from(relations).where(and(eq(relations.sourceId, id), eq(relations.userId, userId)))
-
-  return c.json({
-    kept: kept.length,
-    added: added.length,
-    removed: removed.length,
-    outgoing: updatedOut,
-    incoming: existingIn,
-  })
 })
 
 router.post('/research', async (c) => {
