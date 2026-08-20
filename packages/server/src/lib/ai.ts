@@ -1,3 +1,7 @@
+// ponytail: Groq migration - llama-3.1-8b-instant deprecated 2026-08-16.
+// Using openai/gpt-oss-20b (free tier, 30 RPM / 1K RPD / 8K TPM / 200K TPD).
+// Alternative: Gemini Flash (better multilingual, but new SDK + data sent to Google).
+// Upgrade path: openai/gpt-oss-120b for better quality (same limits, same SDK).
 import type { NodeType, RelationType } from '@babel-plus/shared'
 import OpenAI from 'openai'
 import { config } from './config'
@@ -107,7 +111,7 @@ JSON:`
   let response
   try {
     response = await client.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+      model: 'openai/gpt-oss-20b',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
       response_format: { type: 'json_object' },
