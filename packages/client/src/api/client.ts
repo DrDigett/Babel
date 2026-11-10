@@ -52,6 +52,8 @@ export const api = {
     update: (id: string, data: any) => request<any>(`/nodes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => request<any>(`/nodes/${id}`, { method: 'DELETE' }),
     reorder: (nodeIds: string[]) => request<any>('/nodes/reorder', { method: 'PUT', body: JSON.stringify({ nodeIds }) }),
+    setTopOrder: (nodeIds: string[]) => request<any>('/nodes/top-order', { method: 'PUT', body: JSON.stringify({ nodeIds }) }),
+    covers: (ids: string[]) => request<Record<string, string | null>>(`/nodes/covers?ids=${encodeURIComponent(ids.join(','))}`),
   },
   relations: {
     list: (params?: string) => request<any[]>(`/relations${params ? `?${params}` : ''}`),

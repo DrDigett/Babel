@@ -20,6 +20,8 @@ export const nodes = pgTable('nodes', {
   year: integer('year'),
   link: text('link'),
   rating: integer('rating'),
+  topRank: integer('top_rank'),
+  coverUrl: text('cover_url'),
   order: integer('order').notNull().default(0),
   userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
   createdAt: text('created_at').notNull(),

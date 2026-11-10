@@ -15,6 +15,8 @@ export interface Node {
   year: number | null
   link: string | null
   rating: number | null
+  topRank: number | null
+  coverUrl: string | null
   order: number
   createdAt: string
   updatedAt: string
@@ -39,6 +41,7 @@ export interface CreateNodeInput {
   year?: number
   link?: string
   rating?: number
+  coverUrl?: string | null
 }
 
 export interface CreateRelationInput {

@@ -41,6 +41,14 @@ export async function migrate() {
   `)
 
   await db.execute(sql`
+    ALTER TABLE nodes ADD COLUMN IF NOT EXISTS top_rank INTEGER
+  `)
+
+  await db.execute(sql`
+    ALTER TABLE nodes ADD COLUMN IF NOT EXISTS cover_url TEXT
+  `)
+
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS relations (
       id TEXT PRIMARY KEY,
       source_id TEXT NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,

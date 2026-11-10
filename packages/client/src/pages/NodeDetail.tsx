@@ -36,6 +36,8 @@ export default function NodeDetail() {
   const [editAuthor, setEditAuthor] = useState('')
   const [editTags, setEditTags] = useState('')
   const [editYear, setEditYear] = useState('')
+  const [editCover, setEditCover] = useState('')
+  const [coverLoading, setCoverLoading] = useState(false)
   const [reevaluating, setReevaluating] = useState(false)
   const [researchUrl, setResearchUrl] = useState('')
   const [researching, setResearching] = useState(false)
@@ -126,6 +128,7 @@ export default function NodeDetail() {
     setEditAuthor(node.author ?? '')
     setEditTags(node.tags ? JSON.parse(node.tags).join(', ') : '')
     setEditYear(node.year?.toString() ?? '')
+    setEditCover(node.coverUrl ?? '')
     setShowEdit(true)
   }
 
@@ -140,6 +143,7 @@ export default function NodeDetail() {
       ...(author ? { author } : { author: null }),
       ...(tags.length > 0 ? { tags } : { tags: [] }),
       ...(year ? { year } : { year: null }),
+      coverUrl: editCover.trim() || null,
     })
     setShowEdit(false)
     setReevaluating(true)
@@ -160,6 +164,16 @@ export default function NodeDetail() {
       setResearchUrl('')
     } catch {}
     setResearching(false)
+  }
+
+  async function fetchWikiCover() {
+    if (!id) return
+    setCoverLoading(true)
+    try {
+      const res = await api.nodes.covers([id])
+      setEditCover(res[id] ?? '')
+    } catch {}
+    setCoverLoading(false)
   }
 
   function getCurrentPosition(): number {
@@ -620,6 +634,8 @@ export default function NodeDetail() {
             padding: '40px 48px',
             maxWidth: 440,
             width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
             position: 'relative',
           }}>
             <div className="corner-mark tl" />
@@ -688,6 +704,36 @@ export default function NodeDetail() {
                   placeholder="2024"
                   style={{ width: 120, padding: '6px 8px', background: '#1a1a1a', border: '1px solid #333', color: '#E0E0E0', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, outline: 'none' }}
                 />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 9, color: '#546E7A', letterSpacing: 2, textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Imagen (URL)</label>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  {editCover && (
+                    <img
+                      src={editCover}
+                      alt=""
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      onLoad={(e) => { (e.target as HTMLImageElement).style.display = '' }}
+                      style={{ width: 32, height: 44, objectFit: 'cover', border: '1px solid #333', flexShrink: 0 }}
+                    />
+                  )}
+                  <input
+                    type="text"
+                    value={editCover}
+                    onChange={(e) => setEditCover(e.target.value)}
+                    placeholder="https://..."
+                    style={{ flex: 1, padding: '6px 8px', background: '#1a1a1a', border: '1px solid #333', color: '#E0E0E0', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  <button
+                    className="btn"
+                    onClick={fetchWikiCover}
+                    disabled={coverLoading}
+                    style={{ fontSize: 10, opacity: coverLoading ? 0.5 : 1, whiteSpace: 'nowrap' }}
+                  >
+                    {coverLoading ? '...' : 'Wikipedia'}
+                  </button>
+                </div>
               </div>
 
               {/* Research-IA */}

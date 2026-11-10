@@ -6,7 +6,7 @@ import type { Node, Relation } from '@babel-plus/shared'
 
 interface ExportData {
   owner: { email: string; username: string }
-  nodes: Omit<Node, 'id' | 'createdAt' | 'updatedAt' | 'order'>[]
+  nodes: Omit<Node, 'id' | 'createdAt' | 'updatedAt' | 'order' | 'topRank' | 'coverUrl'>[]
   relations: { source: string; target: string; type: Relation['type']; weight: number }[]
   lists: { name: string; description: string | null; nodeTitles: string[] }[]
 }
@@ -17,83 +17,107 @@ export default function ImportExport() {
   const listId = searchParams.get('listId')
   const [importing, setImporting] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [copying, setCopying] = useState(false)
   const [msg, setMsg] = useState('')
   const [log, setLog] = useState<string[]>([])
+
+  async function buildExport() {
+    let nodes: Node[]
+    let relations: Relation[]
+    let lists: { id: string; name: string; description: string | null; nodeIds: string[] }[]
+
+    if (listId) {
+      const full = await api.lists.get(listId)
+      nodes = full.nodes ?? []
+      const nodeIds = new Set(nodes.map((n: Node) => n.id))
+      const allRelations: Relation[] = await api.relations.list()
+      relations = allRelations.filter((r: Relation) => nodeIds.has(r.sourceId) && nodeIds.has(r.targetId))
+      lists = [{ id: full.id, name: full.name, description: full.description, nodeIds: [...nodeIds] }]
+    } else {
+      const [allNodes, allRelations, allLists] = await Promise.all([
+        api.nodes.list(),
+        api.relations.list(),
+        api.lists.list(),
+      ])
+      nodes = allNodes
+      relations = allRelations
+      lists = []
+      for (const list of allLists) {
+        const full = await api.lists.get(list.id)
+        const nodeIds = (full.nodes ?? []).map((n: any) => n.id)
+        lists.push({ id: list.id, name: list.name, description: full.description, nodeIds })
+      }
+    }
+
+    const idToTitle = new Map(nodes.map((n: Node) => [n.id, n.title]))
+
+    const exportNodes = nodes.map((n: Node) => ({
+      title: n.title,
+      type: n.type,
+      description: n.description,
+      status: n.status,
+      tags: n.tags,
+      author: n.author,
+      year: n.year,
+      link: n.link,
+      rating: n.rating,
+    }))
+
+    const exportRelations = relations
+      .filter((r: Relation) => idToTitle.has(r.sourceId) && idToTitle.has(r.targetId))
+      .map((r: Relation) => ({
+        source: idToTitle.get(r.sourceId)!,
+        target: idToTitle.get(r.targetId)!,
+        type: r.type,
+        weight: r.weight,
+      }))
+
+    const exportLists = lists.map(l => ({
+      name: l.name,
+      description: l.description,
+      nodeTitles: l.nodeIds.map(id => idToTitle.get(id) ?? '').filter(Boolean),
+    }))
+
+    const data: ExportData = { owner: { email: user!.email, username: user!.username }, nodes: exportNodes, relations: exportRelations, lists: exportLists }
+    return {
+      json: JSON.stringify(data, null, 2),
+      nodes: exportNodes,
+      relations: exportRelations,
+      lists: exportLists,
+    }
+  }
 
   async function handleExport() {
     setExporting(true)
     setMsg('')
     try {
-      let nodes: Node[]
-      let relations: Relation[]
-      let lists: { id: string; name: string; description: string | null; nodeIds: string[] }[]
-
-      if (listId) {
-        const full = await api.lists.get(listId)
-        nodes = full.nodes ?? []
-        const nodeIds = new Set(nodes.map((n: Node) => n.id))
-        const allRelations: Relation[] = await api.relations.list()
-        relations = allRelations.filter((r: Relation) => nodeIds.has(r.sourceId) && nodeIds.has(r.targetId))
-        lists = [{ id: full.id, name: full.name, description: full.description, nodeIds: [...nodeIds] }]
-      } else {
-        const [allNodes, allRelations, allLists] = await Promise.all([
-          api.nodes.list(),
-          api.relations.list(),
-          api.lists.list(),
-        ])
-        nodes = allNodes
-        relations = allRelations
-        lists = []
-        for (const list of allLists) {
-          const full = await api.lists.get(list.id)
-          const nodeIds = (full.nodes ?? []).map((n: any) => n.id)
-          lists.push({ id: list.id, name: list.name, description: full.description, nodeIds })
-        }
-      }
-
-      const idToTitle = new Map(nodes.map((n: Node) => [n.id, n.title]))
-
-      const exportNodes = nodes.map((n: Node) => ({
-        title: n.title,
-        type: n.type,
-        description: n.description,
-        status: n.status,
-        tags: n.tags,
-        author: n.author,
-        year: n.year,
-        link: n.link,
-        rating: n.rating,
-      }))
-
-      const exportRelations = relations
-        .filter((r: Relation) => idToTitle.has(r.sourceId) && idToTitle.has(r.targetId))
-        .map((r: Relation) => ({
-          source: idToTitle.get(r.sourceId)!,
-          target: idToTitle.get(r.targetId)!,
-          type: r.type,
-          weight: r.weight,
-        }))
-
-      const exportLists = lists.map(l => ({
-        name: l.name,
-        description: l.description,
-        nodeTitles: l.nodeIds.map(id => idToTitle.get(id) ?? '').filter(Boolean),
-      }))
-
-      const data: ExportData = { owner: { email: user!.email, username: user!.username }, nodes: exportNodes, relations: exportRelations, lists: exportLists }
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const { json, nodes: exportNodes, relations: exportRelations, lists: exportLists } = await buildExport()
+      const blob = new Blob([json], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
-      const label = listId ? lists[0].name : 'all'
+      const label = listId ? exportLists[0].name : 'all'
       a.href = url
       a.download = `babel-${label}-${new Date().toISOString().slice(0, 10)}.json`
       a.click()
       URL.revokeObjectURL(url)
-      setMsg(`Exportado: ${exportNodes.length} nodos, ${exportRelations.length} relaciones${listId ? `, lista: ${lists[0].name}` : `, ${exportLists.length} listas`}`)
+      setMsg(`Exportado: ${exportNodes.length} nodos, ${exportRelations.length} relaciones${listId ? `, lista: ${exportLists[0].name}` : `, ${exportLists.length} listas`}`)
     } catch (e) {
       setMsg(`Error: ${e instanceof Error ? e.message : 'desconocido'}`)
     }
     setExporting(false)
+  }
+
+  async function handleCopy() {
+    setCopying(true)
+    setMsg('')
+    try {
+      const { json } = await buildExport()
+      await navigator.clipboard.writeText(json)
+      setMsg('JSON copiado al portapapeles')
+    } catch (e) {
+      setMsg(`Error: ${e instanceof Error ? e.message : 'desconocido'}`)
+    }
+    setCopying(false)
   }
 
   async function handleImport(file: File) {
@@ -188,9 +212,14 @@ export default function ImportExport() {
         <div className="card-label">01 // EXPORT</div>
         <h2>Exportar datos</h2>
         <p className="desc">{listId ? 'Descarga solo los nodos y relaciones de esta lista como JSON.' : 'Descarga todas las listas, nodos y relaciones como JSON.'} Asociado a: {user?.email}</p>
-        <button className="btn" onClick={handleExport} disabled={exporting} style={{ fontSize: 11 }}>
-          {exporting ? 'Exportando...' : 'Descargar JSON'}
-        </button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button className="btn" onClick={handleExport} disabled={exporting || copying} style={{ fontSize: 11 }}>
+            {exporting ? 'Exportando...' : 'Descargar JSON'}
+          </button>
+          <button className="btn" onClick={handleCopy} disabled={exporting || copying} style={{ fontSize: 11 }}>
+            {copying ? 'Copiando...' : 'Copiar JSON'}
+          </button>
+        </div>
       </div>
 
       <div className="card">

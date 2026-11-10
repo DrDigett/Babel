@@ -2,9 +2,10 @@ import crypto from 'node:crypto'
 import { db } from '../db'
 import { nodes } from '../db/schema'
 import { Hono } from 'hono'
-import { eq, and, asc, sql } from 'drizzle-orm'
+import { eq, and, asc, inArray, sql } from 'drizzle-orm'
 import { requireAuth } from '../lib/auth'
 import { getUserId, type AppEnv } from '../lib/types'
+import { resolveCovers } from '../lib/wikipedia'
 import type { CreateNodeInput, NodeType, NodeStatus } from '@babel-plus/shared'
 
 const NODE_TYPES: NodeType[] = ['libro', 'pelicula', 'articulo', 'video', 'curso', 'videojuego']
@@ -25,6 +26,18 @@ router.get('/', async (c) => {
 
   const all = await db.select().from(nodes).where(and(...conditions)).orderBy(asc(nodes.order))
   return c.json(all)
+})
+
+router.get('/covers', async (c) => {
+  const ids = (c.req.query('ids') ?? '').split(',').filter(Boolean)
+  if (ids.length === 0 || ids.length > 20) return c.json({ error: 'invalid ids' }, 400)
+
+  const rows = await db.select({
+    id: nodes.id, title: nodes.title, type: nodes.type,
+    author: nodes.author, link: nodes.link, coverUrl: nodes.coverUrl,
+  }).from(nodes).where(inArray(nodes.id, ids))
+
+  return c.json(await resolveCovers(rows))
 })
 
 router.get('/:id', async (c) => {
@@ -84,6 +97,18 @@ router.put('/reorder', async (c) => {
   return c.json({ success: true })
 })
 
+router.put('/top-order', async (c) => {
+  const userId = getUserId(c)
+  const { nodeIds } = await c.req.json<{ nodeIds: string[] }>()
+  if (!Array.isArray(nodeIds) || nodeIds.length > 1000 || !nodeIds.every((id) => typeof id === 'string')) {
+    return c.json({ error: 'invalid nodeIds' }, 400)
+  }
+  for (let i = 0; i < nodeIds.length; i++) {
+    await db.update(nodes).set({ topRank: i }).where(and(eq(nodes.id, nodeIds[i]), eq(nodes.userId, userId)))
+  }
+  return c.json({ success: true })
+})
+
 router.put('/:id', async (c) => {
   const userId = getUserId(c)
   const id = c.req.param('id')
@@ -105,6 +130,7 @@ router.put('/:id', async (c) => {
   if (body.year !== undefined) update.year = body.year
   if (body.link !== undefined) update.link = body.link?.slice(0, 2000) ?? null
   if (body.rating !== undefined) update.rating = body.rating
+  if (body.coverUrl !== undefined) update.coverUrl = body.coverUrl?.slice(0, 2000) || null
 
   await db.update(nodes).set(update).where(and(eq(nodes.id, id), eq(nodes.userId, userId)))
   const [updated] = await db.select().from(nodes).where(eq(nodes.id, id)).limit(1)
